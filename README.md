@@ -13,9 +13,9 @@
 
 | 파일 | 사용 환경 |
 | --- | --- |
-| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Windows.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
-| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Mac-M1%EC%9D%B4%EC%83%81.zip) | M1 이상, macOS 14 이상 |
-| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Mac-Intel.zip) | Intel Mac, macOS 14 이상 |
+| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/Jipsa-Yeopjari-Windows.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
+| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/Jipsa-Yeopjari-Mac-AppleSilicon.zip) | M1 이상, macOS 14 이상 |
+| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/Jipsa-Yeopjari-Mac-Intel.zip) | Intel Mac, macOS 14 이상 |
 
 맥 종류를 모르겠다면 왼쪽 위  → **이 Mac에 관하여**를 확인하세요. **Apple M…**이면 M1 이상, **Intel**이면 인텔용을 받으세요. 에어·프로 이름이나 출시 연도만으로는 구분하기 어렵습니다.
 

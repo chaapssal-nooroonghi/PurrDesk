@@ -6,7 +6,7 @@ import hashlib,json,subprocess,urllib.parse,zipfile
 manifest=json.loads(Path('release-manifest.json').read_text())
 assert manifest['tag']=='v1.0.5'
 output=Path('packages');output.mkdir(exist_ok=True)
-expected_names={'집사 옆자리-Windows.zip','집사 옆자리-Mac-M1이상.zip','집사 옆자리-Mac-Intel.zip'}
+expected_names={'Jipsa-Yeopjari-Windows.zip','Jipsa-Yeopjari-Mac-AppleSilicon.zip','Jipsa-Yeopjari-Mac-Intel.zip'}
 assert {entry['name'] for entry in manifest['files']}==expected_names
 class DownloadLink(HTMLParser):
     def __init__(self):super().__init__();self.links=[]

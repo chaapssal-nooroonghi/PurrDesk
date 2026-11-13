@@ -2,24 +2,25 @@
   "tag": "v1.0.5",
   "files": [
     {
-      "name": "집사 옆자리-Windows.zip",
+      "name": "Jipsa-Yeopjari-Windows.zip",
       "url": "https://tmpfiles.org/wrAn7NH6m55a/windows-v105.zip",
       "bytes": 25161805,
-      "sha256": "3b189cd394e534ac1b07e6484524f9a52333b4face93637878f811a6f66611c8"
+      "sha256": "3b189cd394e534ac1b07e6484524f9a52333b4face93637878f811a6f66611c8",
+      "label": "집사 옆자리-Windows.zip"
     },
     {
-      "name": "집사 옆자리-Mac-M1이상.zip",
+      "name": "Jipsa-Yeopjari-Mac-AppleSilicon.zip",
       "url": "https://tmpfiles.org/wdAl7WHOmjXk/mac-arm-v105.zip",
       "bytes": 66236824,
-      "sha256": "fdceface131b8e43f86adef2102539e010e463d441dd8ec5e3f1f667755ce65f"
+      "sha256": "fdceface131b8e43f86adef2102539e010e463d441dd8ec5e3f1f667755ce65f",
+      "label": "집사 옆자리-Mac-M1이상.zip"
     },
     {
-      "name": "집사 옆자리-Mac-Intel.zip",
+      "name": "Jipsa-Yeopjari-Mac-Intel.zip",
       "url": "https://tmpfiles.org/wSAM72Hsmn2v/mac-intel-v105.zip",
       "bytes": 70477645,
-      "sha256": "615cedfdd5ce2aa92911fc1fa24d0f79dbf7defde48d4781f926e010dfdeb75a"
+      "sha256": "615cedfdd5ce2aa92911fc1fa24d0f79dbf7defde48d4781f926e010dfdeb75a",
+      "label": "집사 옆자리-Mac-Intel.zip"
     }
   ]
 }
-
-
