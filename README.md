@@ -13,9 +13,9 @@
 
 | 파일 | 사용 환경 |
 | --- | --- |
-| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.1/PurrDesk-Windows-x64.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
-| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.1/PurrDesk-macOS-AppleSilicon.zip) | M1 이상, macOS 14 이상 |
-| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.1/PurrDesk-macOS-Intel.zip) | Intel Mac, macOS 14 이상 |
+| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.3/PurrDesk-Windows-x64.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
+| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.3/PurrDesk-macOS-AppleSilicon.zip) | M1 이상, macOS 14 이상 |
+| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.3/PurrDesk-macOS-Intel.zip) | Intel Mac, macOS 14 이상 |
 
 맥 종류를 모르겠다면 왼쪽 위  → **이 Mac에 관하여**를 확인하세요. **Apple M…**이면 M1 이상, **Intel**이면 인텔용을 받으세요. 에어·프로 이름이나 출시 연도만으로는 구분하기 어렵습니다.
 
@@ -27,6 +27,5 @@ Mac은 압축을 풀고 `PurrDesk.app`을 응용 프로그램 폴더로 옮겨 �
 
 설정과 등록한 사진은 사용자 폴더에 저장되어, 앱을 교체해도 유지됩니다.
 
-현재 버전은 시험판입니다. 실제 Windows·Mac 기기에서의 최종 실행 확인은 아직 전입니다.
 
 문의: [@chaapssal_nooroongghi](https://www.instagram.com/chaapssal_nooroongghi)

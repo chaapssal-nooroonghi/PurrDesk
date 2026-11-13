@@ -4,7 +4,7 @@ from html.parser import HTMLParser
 import hashlib,json,subprocess,urllib.parse,zipfile
 
 manifest=json.loads(Path('release-manifest.json').read_text())
-assert manifest['tag']=='v1.0.1'
+assert manifest['tag']=='v1.0.3'
 output=Path('packages');output.mkdir(exist_ok=True)
 expected_names={'PurrDesk-Windows-x64.zip','PurrDesk-macOS-AppleSilicon.zip','PurrDesk-macOS-Intel.zip'}
 assert {entry['name'] for entry in manifest['files']}==expected_names
