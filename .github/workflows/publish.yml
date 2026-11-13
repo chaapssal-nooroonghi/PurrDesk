@@ -35,8 +35,9 @@ jobs:
           else
             gh release create "$tag" --draft --target "$GITHUB_SHA" --title "내 펫 퇴근 알리미 $tag" --notes-file RELEASE-NOTES.md
           fi
+          gh release edit "$tag" --target "$GITHUB_SHA" --title "내 펫 퇴근 알리미 $tag" --notes-file RELEASE-NOTES.md
           gh release upload "$tag" packages/*.zip --clobber
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" > uploaded-release.json
+          gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$tag\")" > uploaded-release.json
           python3 - <<'PY'
           import json
           manifest=json.load(open('release-manifest.json'))
