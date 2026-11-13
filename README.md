@@ -1,4 +1,4 @@
-# 내 펫 퇴근 알리미
+# 집사 옆자리
 
 누룽지와 찹쌀이가 바탕화면에서 함께하는 데스크톱 펫입니다. 직접 사진이나 GIF를 등록해 다른 귀염둥이로 바꿀 수도 있어요.
 
@@ -13,14 +13,14 @@
 
 | 파일 | 사용 환경 |
 | --- | --- |
-| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.4/PurrDesk-Windows-x64.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
-| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.4/PurrDesk-macOS-AppleSilicon.zip) | M1 이상, macOS 14 이상 |
-| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.4/PurrDesk-macOS-Intel.zip) | Intel Mac, macOS 14 이상 |
+| [윈도우용 다운로드](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Windows.zip) | Windows 10 2004 이상 / Windows 11, 64비트 |
+| [맥용 — M1 이상](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Mac-M1%EC%9D%B4%EC%83%81.zip) | M1 이상, macOS 14 이상 |
+| [맥용 — 인텔(Intel)](https://github.com/chaapssal-nooroonghi/PurrDesk/releases/download/v1.0.5/%EC%A7%91%EC%82%AC%20%EC%98%86%EC%9E%90%EB%A6%AC-Mac-Intel.zip) | Intel Mac, macOS 14 이상 |
 
 맥 종류를 모르겠다면 왼쪽 위  → **이 Mac에 관하여**를 확인하세요. **Apple M…**이면 M1 이상, **Intel**이면 인텔용을 받으세요. 에어·프로 이름이나 출시 연도만으로는 구분하기 어렵습니다.
 
-Windows는 압축을 모두 풀고 `PurrDesk.exe`를 실행하세요. `data` 폴더를 함께 두세요.
-Mac은 압축을 풀고 `PurrDesk.app`을 응용 프로그램 폴더로 옮겨 실행하세요.
+Windows는 압축을 모두 풀고 `집사 옆자리.exe`를 실행하세요. `data` 폴더를 함께 두세요.
+Mac은 압축을 풀고 `집사 옆자리.app`을 응용 프로그램 폴더로 옮겨 실행하세요.
 별도 .NET 설치는 필요 없습니다. 실행 방법은 ZIP 안의 시작하기 파일에도 있습니다.
 
 귀염둥이를 우클릭하면 설정이 열립니다. 클릭 통과를 해제하거나 숨긴 귀염둥이를 보려면 Windows 트레이 / Mac 메뉴 막대 아이콘을 사용하세요.
