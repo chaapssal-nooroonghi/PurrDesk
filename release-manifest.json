@@ -1,23 +1,23 @@
 {
-  "tag": "v1.0.3",
+  "tag": "v1.0.4",
   "files": [
     {
       "name": "PurrDesk-Windows-x64.zip",
-      "url": "https://tmpfiles.org/w8Am7EKm9xkJ/purrdesk-windows-x64.zip",
-      "bytes": 24249597,
-      "sha256": "7f0f1bbb7f5f8646b67c21f5ad586f52502ed12a57c74b1fe340e6c421067dba"
+      "url": "https://tmpfiles.org/wfAr7CHz3wwb/purrdesk-windows-x64.zip",
+      "bytes": 25161845,
+      "sha256": "b49599f25ea6b481f183b5ef23625a27d878ff284d3510bda8707ea702086f1c"
     },
     {
       "name": "PurrDesk-macOS-AppleSilicon.zip",
-      "url": "https://tmpfiles.org/wuAZ77KT9gEZ/purrdesk-macos-applesilicon.zip",
-      "bytes": 65324383,
-      "sha256": "74c56308842041fff9d03c98511b68306d3944cdaff93e93c6e03d78fef7c80d"
+      "url": "https://tmpfiles.org/wzAg7EHGY1h5/purrdesk-macos-applesilicon.zip",
+      "bytes": 66235844,
+      "sha256": "076165a2e49589d0519b4ec76b80b1e4273495156b8fdee433c8009965086ad3"
     },
     {
       "name": "PurrDesk-macOS-Intel.zip",
-      "url": "https://tmpfiles.org/wfAw7xKnQOwR/purrdesk-macos-intel.zip",
-      "bytes": 69564143,
-      "sha256": "3ca9cfbf4f06fa0eee09ccf43bd5efac19694d0cb279c727f6aea7d1741696cf"
+      "url": "https://tmpfiles.org/wtAN7PHm1ieW/purrdesk-macos-intel.zip",
+      "bytes": 70476758,
+      "sha256": "04ee79faf7c98cb6ae9b57c35f9b8429ff5ce41c57f4cbf0c4ecfb6be8517305"
     }
   ]
 }
