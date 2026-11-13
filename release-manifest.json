@@ -1,0 +1,23 @@
+{
+  "tag": "v1.0.1",
+  "files": [
+    {
+      "name": "PurrDesk-Windows-x64.zip",
+      "url": "https://tmpfiles.org/wTAr7vloJ5cT/purrdesk-windows-x64.zip",
+      "bytes": 24249340,
+      "sha256": "d4b492c6edcad1c062198b1012af793c2674d6e6a96a550c1c1a09f75e1e9da3"
+    },
+    {
+      "name": "PurrDesk-macOS-AppleSilicon.zip",
+      "url": "https://tmpfiles.org/wrAj7qlm5Lrv/purrdesk-macos-applesilicon.zip",
+      "bytes": 65324436,
+      "sha256": "b6e79b9b3e99c50550865fb449379b557e224535dde5ac18486b0c78f615c83b"
+    },
+    {
+      "name": "PurrDesk-macOS-Intel.zip",
+      "url": "https://tmpfiles.org/wEA77TlD5OOR/purrdesk-macos-intel.zip",
+      "bytes": 69564062,
+      "sha256": "836dba873f32c160edc6e7935102876dc7b7ad8288a840c4d65aec4b7b4fbb53"
+    }
+  ]
+}
