@@ -1,0 +1,39 @@
+name: Publish PurrDesk
+
+on:
+  push:
+    paths:
+      - release-manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: purrdesk-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify release files
+        run: python3 publish-release.py
+      - name: Publish verified packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(python3 -c 'import json; print(json.load(open("release-manifest.json"))["tag"])')
+          if gh release view "$tag" --json isDraft --jq '.isDraft' > release-state.txt 2>/dev/null; then
+            if [ "$(cat release-state.txt)" != true ]; then
+              echo 'This release is already public; no files were changed.'
+              exit 0
+            fi
+          else
+            gh release create "$tag" --draft --prerelease --title '내 펫 퇴근 알리미 v1.0.1 · 시험판' --notes-file RELEASE-NOTES.md
+          fi
+          gh release upload "$tag" packages/*.zip --clobber
+          gh release edit "$tag" --draft=false --prerelease --latest=false
