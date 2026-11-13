@@ -36,6 +36,7 @@ jobs:
             gh release create "$tag" --draft --target "$GITHUB_SHA" --title "집사 옆자리 $tag" --notes-file RELEASE-NOTES.md
           fi
           gh release edit "$tag" --target "$GITHUB_SHA" --title "집사 옆자리 $tag" --notes-file RELEASE-NOTES.md
+          gh api "repos/$GITHUB_REPOSITORY/releases" --jq '.[] | {tag_name, draft, assets: [.assets[] | {name, digest, size}]}'
           gh release upload "$tag" packages/*.zip --clobber
           gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$tag\")" > uploaded-release.json
           python3 - <<'PY'
@@ -44,6 +45,8 @@ jobs:
           release=json.load(open('uploaded-release.json'))
           expected={f['name']:(f['bytes'],'sha256:'+f['sha256']) for f in manifest['files']}
           actual={f['name']:(f['size'],f['digest']) for f in release['assets']}
+          print('Expected names:', list(expected))
+          print('Uploaded names:', list(actual))
           assert release['draft'] and expected==actual, 'Uploaded package verification failed'
           PY
           gh release edit "$tag" --draft=false --prerelease=false --latest
