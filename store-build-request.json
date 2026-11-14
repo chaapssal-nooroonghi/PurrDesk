@@ -1,9 +1,9 @@
 {
-  "purpose": "Build final Microsoft Store upload package with user-provided Partner Center identity; no application source included; do not publish a GitHub release.",
-  "version": "1.0.6.0",
-  "url": "https://tmpfiles.org/wMAN775FGwjH/store-binaries.zip",
-  "bytes": 25233692,
-  "sha256": "610b99c67630a3644e52c8e3bf9c8e8dc99335a554b3d0b239fb669f99f22088",
+  "purpose": "Store-only WACK remediation build; no application source or signing keys; do not modify releases or submit to Store.",
+  "version": "1.0.7.0",
+  "url": "https://tmpfiles.org/wEAw79u3OXS8/store-binaries.zip",
+  "bytes": 25209788,
+  "sha256": "bfe053dd3a24339c54c9e0f3bfae163eeec385b8b132fc60c91250f885d52012",
   "identity": {
     "name": "Chaapssal-Nooroongghi.10202156D8DE9",
     "publisher": "CN=DE7DDEC8-9C61-4EC5-BFE6-81123A68DFC1",
