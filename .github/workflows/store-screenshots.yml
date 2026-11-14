@@ -1,0 +1,62 @@
+name: Export Store screenshots
+on:
+  push:
+    paths:
+      - screenshot-request.json
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-package-validation
+          run-id: 43538458207
+          github-token: ${{ github.token }}
+          path: previous-package
+      - name: Extract existing Store package
+        shell: pwsh
+        run: |
+          Copy-Item ./previous-package/Jipsa-Yeopjari-1.0.6.0-Store.msix ./package.zip
+          Expand-Archive ./package.zip ./payload
+      - name: Retrieve verified compiled binaries (no application source)
+        shell: python
+        run: |
+          import json, hashlib, subprocess, urllib.parse, zipfile
+          from html.parser import HTMLParser
+          from pathlib import Path
+          r=json.loads(Path('screenshot-request.json').read_text(encoding='utf-8'))
+          u=urllib.parse.urlparse(r['url'])
+          assert u.scheme=='https' and u.hostname=='tmpfiles.org'
+          class Links(HTMLParser):
+              def __init__(self): super().__init__(); self.urls=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=='a' and 'download' in a.get('class','').split(): self.urls.append(a['href'])
+          page=subprocess.run(['curl.exe','--fail','--silent','--show-error',r['url']],capture_output=True,text=True,check=True).stdout
+          links=Links();links.feed(page);assert len(links.urls)==1
+          direct=urllib.parse.urljoin(r['url'],links.urls[0]);u=urllib.parse.urlparse(direct)
+          assert u.scheme=='https' and u.hostname=='tmpfiles.org' and u.path.startswith('/dl/')
+          subprocess.run(['curl.exe','--fail','--silent','--show-error','--max-time','180','--output','renderer.zip',direct],check=True)
+          data=Path('renderer.zip').read_bytes();assert len(data)==r['bytes'] and hashlib.sha256(data).hexdigest()==r['sha256']
+          with zipfile.ZipFile('renderer.zip') as z:
+              assert z.testzip() is None
+              z.extractall('payload')
+      - name: Export production Windows UI surfaces
+        shell: pwsh
+        run: |
+          & ./payload/StoreScreenshots.exe "$env:GITHUB_WORKSPACE/screenshots"
+          if ($LASTEXITCODE -ne 0) { throw 'Visual export failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-screenshots
+          path: |
+            screenshots/*.png
+            screenshots/provenance.txt
+          if-no-files-found: error
+          retention-days: 30
