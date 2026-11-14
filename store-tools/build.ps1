@@ -4,7 +4,7 @@ param(
  [string]$PublisherDisplayName,
  [switch]$Preview,
  [string]$Prebuilt,
- [string]$Output = (Join-Path $PSScriptRoot '..\releases\store-v106')
+ [string]$Output = (Join-Path $PSScriptRoot '..\releases\store-v107')
 )
 $ErrorActionPreference = 'Stop'
 if ($Preview) {
@@ -22,7 +22,7 @@ if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 if ($Prebuilt) {
  Copy-Item $Prebuilt $stage -Recurse -Force
 } else {
- dotnet build (Join-Path $PSScriptRoot '..\PurrDesk.Framework\PurrDesk.Framework.csproj') -c Release -p:AssemblyName=PurrDesk -p:Version=1.0.6 -p:AssemblyVersion=1.0.6.0 -p:FileVersion=1.0.6.0 -o $stage
+ dotnet build (Join-Path $PSScriptRoot '..\PurrDesk.Framework\PurrDesk.Framework.csproj') -c Release -p:AssemblyName=PurrDesk -p:Version=1.0.7 -p:AssemblyVersion=1.0.7.0 -p:FileVersion=1.0.7.0 -o $stage
  if ($LASTEXITCODE -ne 0) { throw 'Store app build failed' }
  Get-ChildItem $stage -Recurse -Include *.pdb,*.lib,*.xml | Remove-Item -Force
  Copy-Item (Join-Path $PSScriptRoot '..\PurrDesk.Framework\THIRD-PARTY.md') (Join-Path $stage 'licenses\THIRD-PARTY.md')
@@ -56,7 +56,7 @@ foreach ($size in @(44,150)) {
 Draw-AppIcon (Join-Path $Output 'Store-listing-icon.png') 300
 $tools=Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\makeappx.exe" | Sort-Object FullName -Descending
 if (!$tools) { throw 'Windows SDK MakeAppx.exe is required.' }
-$package=Join-Path $Output $(if($Preview){'Jipsa-Yeopjari-1.0.6.0-PREVIEW.msix'}else{'Jipsa-Yeopjari-1.0.6.0-Store.msix'})
+$package=Join-Path $Output $(if($Preview){'Jipsa-Yeopjari-1.0.7.0-PREVIEW.msix'}else{'Jipsa-Yeopjari-1.0.7.0-Store.msix'})
 & $tools[0].FullName pack /o /h SHA256 /d $stage /p $package
 if ($LASTEXITCODE -ne 0) { throw 'MakeAppx schema or package validation failed' }
 & $tools[0].FullName unpack /o /p $package /d (Join-Path $Output 'unpacked-validation')
@@ -67,5 +67,5 @@ foreach ($f in $before) {
  $unpacked=Join-Path (Join-Path $Output 'unpacked-validation') $relative
  if (!(Test-Path $unpacked) -or (Get-FileHash $f.FullName).Hash -ne (Get-FileHash $unpacked).Hash) { throw "Package round-trip changed $relative" }
 }
-@{preview=[bool]$Preview;identity=$IdentityName;publisher=$Publisher;version='1.0.6.0';sha256=(Get-FileHash $package).Hash.ToLower();bytes=(Get-Item $package).Length;makeappx=$tools[0].FullName;files=$before.Count;round_trip_verified=$true;store_submitted=$false} | ConvertTo-Json | Set-Content (Join-Path $Output 'package-verification.json') -Encoding UTF8
+@{preview=[bool]$Preview;identity=$IdentityName;publisher=$Publisher;version='1.0.7.0';sha256=(Get-FileHash $package).Hash.ToLower();bytes=(Get-Item $package).Length;makeappx=$tools[0].FullName;files=$before.Count;round_trip_verified=$true;store_submitted=$false} | ConvertTo-Json | Set-Content (Join-Path $Output 'package-verification.json') -Encoding UTF8
 Write-Host "Validated package: $package"
