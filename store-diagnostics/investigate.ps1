@@ -47,9 +47,12 @@ try {
  $package | Select-Object Name,Version,PackageFullName,InstallLocation | ConvertTo-Json | Set-Content "$out/installed-package.json"
  [ManifestProbe]::Probe((Join-Path $package.InstallLocation 'PurrDesk.exe')) | Tee-Object "$out/installed-native-probe.txt"
  & $wack reset | Out-File "$out/wack-reset.txt"
+ & sxstrace.exe Trace "-logfile:$out/sxs.etl" -nostop
  $test=Start-Process $wack -ArgumentList 'test','-packagefullname',$package.PackageFullName,'-reportoutputpath',"$out/wack-report.xml" -PassThru -RedirectStandardOutput "$out/wack-stdout.txt" -RedirectStandardError "$out/wack-stderr.txt"
  if(!$test.WaitForExit(600000)){$test.Kill();throw 'WACK timeout'}
  "WACK exit=$($test.ExitCode)" | Set-Content "$out/wack-exit.txt"
+ & sxstrace.exe StopTrace
+ & sxstrace.exe Parse "-logfile:$out/sxs.etl" "-outfile:$out/sxs.txt"
 } catch {
  $_ | Format-List * -Force | Out-File "$out/error.txt"
  Write-Host "Diagnostic limitation: $($_.Exception.Message)"
@@ -59,5 +62,6 @@ try {
  if($cert){Remove-Item ("Cert:\CurrentUser\My\"+$cert.Thumbprint) -DeleteKey -ErrorAction Continue}
  if(Test-Path $msix){Get-FileHash $msix | Format-List | Out-File "$out/original-hash-after.txt"}
  'No Store submission; original MSIX never modified; temporary CI installation and cert cleanup attempted.' | Set-Content "$out/scope.txt"
+ Get-ChildItem $out -File | Where-Object { $_.Extension -in @(".txt", ".xml") -and $_.Name -ne "transcript.txt" } | ForEach-Object { Write-Output ("DIAGNOSTIC FILE: "+$_.Name);Get-Content $_.FullName }
  Stop-Transcript
 }
