@@ -51,6 +51,13 @@ jobs:
           Copy-Item ./input/checks/* ./checks -Force
           & ./checks/PurrDesk.Framework.Checks.exe | Tee-Object ./store-output/windows-checks.txt
           if ($LASTEXITCODE -ne 0) { throw 'Windows checks failed' }
+      - name: Validate settings layout and declared DPI mode
+        shell: pwsh
+        run: |
+          Copy-Item ./input/ui-checks/* ./checks -Force
+          & ./checks/StoreUiChecks.exe "$env:GITHUB_WORKSPACE/store-output/ui-checks"
+          if ($LASTEXITCODE -ne 0) { throw 'Settings layout checks failed' }
+          Copy-Item ./input/evidence/* ./store-output -Force
       - name: Run native desktop smoke check
         shell: pwsh
         run: ./store-tools/smoke.ps1 -Layout "$env:GITHUB_WORKSPACE/store-output/layout" -Output "$env:GITHUB_WORKSPACE/store-output"
@@ -64,5 +71,6 @@ jobs:
             store-output/*.json
             store-output/*.png
             store-output/*.txt
+            store-output/ui-checks/**
           if-no-files-found: warn
           retention-days: 30
