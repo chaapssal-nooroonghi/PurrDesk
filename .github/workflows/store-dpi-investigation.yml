@@ -1,0 +1,30 @@
+name: Investigate original Store DPI warning
+on:
+  push:
+    branches: [store/dpi-investigation-107]
+    paths: [.github/workflows/store-dpi-investigation.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe original 1.0.7 package without changing application code
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Copy-Item store-diagnostics/probe.cs .
+          ./store-diagnostics/investigate.ps1
+      - name: Preserve diagnostic evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-dpi-original-107-diagnostics
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 30
