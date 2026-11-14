@@ -1,0 +1,7 @@
+{
+  "purpose": "Validate compiled Store binaries only. No application source, project files or debugging symbols are included. Preview identity; do not submit or publish release.",
+  "version": "1.0.6.0",
+  "url": "https://tmpfiles.org/wMAN775FGwjH/store-binaries.zip",
+  "bytes": 25233692,
+  "sha256": "610b99c67630a3644e52c8e3bf9c8e8dc99335a554b3d0b239fb669f99f22088"
+}

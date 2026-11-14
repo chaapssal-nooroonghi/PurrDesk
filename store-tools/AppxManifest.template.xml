@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+ xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+ xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+ IgnorableNamespaces="uap uap5 rescap">
+ <Identity Name="__IDENTITY_NAME__" Publisher="__PUBLISHER__" Version="1.0.6.0" ProcessorArchitecture="x64" />
+ <Properties>
+  <DisplayName>집사 옆자리</DisplayName>
+  <PublisherDisplayName>__PUBLISHER_DISPLAY_NAME__</PublisherDisplayName>
+  <Logo>Assets\StoreLogo.png</Logo>
+ </Properties>
+ <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
+ <Resources><Resource Language="ko-KR" /></Resources>
+ <Applications>
+  <Application Id="PurrDesk" Executable="PurrDesk.exe" EntryPoint="Windows.FullTrustApplication">
+   <uap:VisualElements DisplayName="집사 옆자리" Description="우리 집 귀염둥이와 함께하는 퇴근 시간·뽀모도르·스트레칭 알리미" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
+   <Extensions>
+    <uap5:Extension Category="windows.startupTask" Executable="PurrDesk.exe" EntryPoint="Windows.FullTrustApplication">
+     <uap5:StartupTask TaskId="PurrDeskStartup" Enabled="false" DisplayName="집사 옆자리" />
+    </uap5:Extension>
+   </Extensions>
+  </Application>
+ </Applications>
+ <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
+</Package>
