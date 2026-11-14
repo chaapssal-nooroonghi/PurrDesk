@@ -2,7 +2,7 @@ name: Investigate original Store DPI warning
 on:
   push:
     branches: [store/dpi-investigation-107]
-    paths: [.github/workflows/store-dpi-investigation.yml]
+    paths: [.github/workflows/store-dpi-investigation.yml, 'store-diagnostics/**']
   workflow_dispatch:
 permissions:
   contents: read
