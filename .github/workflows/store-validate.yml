@@ -37,7 +37,13 @@ jobs:
               z.extractall('input')
       - name: Build and validate MSIX with Microsoft MakeAppx
         shell: pwsh
-        run: ./store-tools/build.ps1 -Preview -Prebuilt "$env:GITHUB_WORKSPACE/input/payload" -Output "$env:GITHUB_WORKSPACE/store-output"
+        run: |
+          $request=Get-Content store-build-request.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($request.identity) {
+            ./store-tools/build.ps1 -IdentityName $request.identity.name -Publisher $request.identity.publisher -PublisherDisplayName $request.identity.publisherDisplayName -Prebuilt "$env:GITHUB_WORKSPACE/input/payload" -Output "$env:GITHUB_WORKSPACE/store-output"
+          } else {
+            ./store-tools/build.ps1 -Preview -Prebuilt "$env:GITHUB_WORKSPACE/input/payload" -Output "$env:GITHUB_WORKSPACE/store-output"
+          }
       - name: Run Windows functional checks
         shell: pwsh
         run: |
@@ -52,7 +58,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: store-preview-validation
+          name: store-package-validation
           path: |
             store-output/*.msix
             store-output/*.json

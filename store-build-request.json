@@ -1,7 +1,12 @@
 {
-  "purpose": "Validate compiled Store binaries only. No application source, project files or debugging symbols are included. Preview identity; do not submit or publish release.",
+  "purpose": "Build final Microsoft Store upload package with user-provided Partner Center identity; no application source included; do not publish a GitHub release.",
   "version": "1.0.6.0",
   "url": "https://tmpfiles.org/wMAN775FGwjH/store-binaries.zip",
   "bytes": 25233692,
-  "sha256": "610b99c67630a3644e52c8e3bf9c8e8dc99335a554b3d0b239fb669f99f22088"
+  "sha256": "610b99c67630a3644e52c8e3bf9c8e8dc99335a554b3d0b239fb669f99f22088",
+  "identity": {
+    "name": "Chaapssal-Nooroongghi.10202156D8DE9",
+    "publisher": "CN=DE7DDEC8-9C61-4EC5-BFE6-81123A68DFC1",
+    "publisherDisplayName": "Chaapssal-Nooroongghi"
+  }
 }
