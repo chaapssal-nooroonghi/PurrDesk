@@ -72,8 +72,7 @@ jobs:
           for f in m['files']:
               p=Path('packages')/f['name'];f['bytes']=p.stat().st_size;f['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
           Path('packages/release-manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2),encoding='utf-8')
-          Path('packages/SHA256SUMS.txt').write_text(''.join(f"{f['sha256']}  {f['name']}
-" for f in m['files']),encoding='utf-8')
+          Path('packages/SHA256SUMS.txt').write_text(''.join(f"{f['sha256']}  {f['name']}"+chr(10) for f in m['files']),encoding='utf-8')
           '@ | python -
           if($LASTEXITCODE -ne 0){throw 'Final shortcut packaging failed'}
           Copy-Item packages/release-manifest.json,packages/SHA256SUMS.txt evidence -Force
