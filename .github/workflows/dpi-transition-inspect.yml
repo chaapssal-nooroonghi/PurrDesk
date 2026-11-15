@@ -27,6 +27,7 @@ jobs:
           using System.Reflection;
           using System.Runtime.InteropServices;
           using System.Windows.Forms;
+          [assembly:System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8")]
           class Probe {
             [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
             [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h,int m,IntPtr w,IntPtr l);
