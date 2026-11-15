@@ -1,0 +1,156 @@
+name: Build test and release Mac 1.0.14
+on:
+  push:
+    paths: ['.github/workflows/publish-v114-mac.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: purrdesk-release
+  cancel-in-progress: false
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-arm64
+            runner: macos-15
+            asset: Jipsa-Yeopjari-Mac-AppleSilicon.zip
+            cpu: '0x100000c'
+          - rid: osx-x64
+            runner: macos-15-intel
+            asset: Jipsa-Yeopjari-Mac-Intel.zip
+            cpu: '0x1000007'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      PYTHONUTF8: '1'
+      PURRDESK_TEST_ARTIFACTS: ${{ github.workspace }}/evidence/basic-artifacts
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.404'
+      - name: Download and verify fixed source snapshot
+        env:
+          INPUT_URL: https://tmpfiles.org/wnA4yblM9tpm/jipsa-mac-1.0.14-build-input.zip
+          INPUT_SHA: 14c71382d1b6f69395c0d4c08afa0c0fae79a8aedc3ae3cb2c19bdfc3efbb201
+        run: |
+          python3 - <<'PYCODE'
+          import urllib.request,urllib.parse,os,hashlib,zipfile
+          from html.parser import HTMLParser
+          class Links(HTMLParser):
+              def __init__(self): super().__init__(); self.links=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=='a' and 'download' in a.get('class','').split(): self.links.append(a.get('href',''))
+          u=os.environ['INPUT_URL'];p=Links();p.feed(urllib.request.urlopen(u,timeout=30).read().decode());assert len(p.links)==1
+          direct=urllib.parse.urljoin(u,p.links[0]);parts=urllib.parse.urlparse(direct);assert parts.scheme=='https' and parts.hostname=='tmpfiles.org' and parts.path.startswith('/dl/')
+          data=urllib.request.urlopen(direct,timeout=120).read();assert hashlib.sha256(data).hexdigest()==os.environ['INPUT_SHA']
+          open('build-input.zip','wb').write(data)
+          with zipfile.ZipFile('build-input.zip') as z: z.extractall('.')
+          PYCODE
+          mkdir -p evidence packages
+          cp changes.patch RELEASE-NOTES.md evidence/
+          sw_vers > evidence/build-environment.txt
+          uname -m >> evidence/build-environment.txt
+          dotnet --info >> evidence/build-environment.txt
+      - name: Test Mac image and settings paths
+        run: |
+          set -o pipefail
+          dotnet run --project source/PurrDesk.Mac.Checks -c Release | tee evidence/basic-checks.log
+          dotnet run --project RegressionChecks -c Release | tee evidence/regression-checks.log
+          cp regression-results.json evidence/
+          python3 - <<'PYCODE'
+          import json
+          assert json.load(open('regression-results.json'))['failures']==0
+          assert '34 mac checks passed.' in open('evidence/basic-checks.log').read()
+          PYCODE
+      - name: Build and sign native architecture bundle
+        env:
+          RID: ${{ matrix.rid }}
+          ASSET: ${{ matrix.asset }}
+          CPU: ${{ matrix.cpu }}
+        run: |
+          set -o pipefail
+          dotnet publish source/PurrDesk.Mac/PurrDesk.Mac.csproj -c Release -r "$RID" --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish | tee evidence/publish.log
+          python3 source/PurrDesk.Mac/package.py --rid "$RID" --publish publish --output packaged | tee evidence/package.log
+          codesign --verify --deep --strict 'packaged/집사 옆자리.app' 2> evidence/codesign-verify.txt
+          python3 source/PurrDesk.Mac/verify_bundle.py 'packaged/집사 옆자리.app' "$CPU" > evidence/bundle-verification.json
+          PYTHONPATH=source/PurrDesk.Mac python3 - <<'PYCODE'
+          from pathlib import Path
+          from verify_bundle import verify_single_file
+          import plistlib,hashlib,json
+          count=verify_single_file(Path('publish/PurrDesk'),Path('packaged/집사 옆자리.app/Contents/MacOS/PurrDesk'))
+          p=plistlib.loads(Path('packaged/집사 옆자리.app/Contents/Info.plist').read_bytes());assert p['CFBundleShortVersionString']=='1.0.14'
+          print('Verified unchanged .NET payloads after signing:',count)
+          PYCODE
+          mv packaged.zip "packages/$ASSET"
+          cp packaged.json evidence/package.json
+      - name: Start packaged app and observe native pet windows
+        run: |
+          swiftc NativeWindows.swift -o native-windows
+          python3 native_smoke.py 'packaged/집사 옆자리.app' evidence
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-v114-${{ matrix.rid }}
+          path: |
+            packages
+            evidence
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mac-v114-failure-${{ matrix.rid }}
+          path: evidence
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.rid == 'osx-arm64'
+        with:
+          name: mac-v114-build-input
+          path: build-input.zip
+          retention-days: 90
+  publish:
+    needs: mac
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mac-v114-osx-*
+          path: verified
+      - name: Verify both Mac builds and preserve Windows package
+        run: |
+          mkdir -p packages evidence
+          gh release download v1.0.13 --repo "$GITHUB_REPOSITORY" --pattern Jipsa-Yeopjari-Windows.zip --dir packages
+          python3 - <<'PYCODE'
+          import json,hashlib,shutil,gzip,base64
+          from pathlib import Path
+          root=Path('verified');summaries=[]
+          for rid,asset in [('osx-arm64','Jipsa-Yeopjari-Mac-AppleSilicon.zip'),('osx-x64','Jipsa-Yeopjari-Mac-Intel.zip')]:
+              d=root/('mac-v114-'+rid);r=json.loads((d/'evidence/regression-results.json').read_text());assert r['failures']==0
+              n=json.loads((d/'evidence/native-smoke.json').read_text());assert n['native_app_started'] and n['visible_pet_windows']>=2
+              assert n['cpu']==('arm64' if rid=='osx-arm64' else 'x86_64')
+              summaries.append({'rid':rid,'regression_checks':len(r['results']),'native':n})
+              shutil.copyfile(d/'packages'/asset,Path('packages')/asset)
+              shutil.copytree(d/'evidence',Path('evidence')/rid)
+          windows=Path('packages/Jipsa-Yeopjari-Windows.zip');assert hashlib.sha256(windows.read_bytes()).hexdigest()=='482150b36c25e2b01f481a4f58606f6d3f32a233168fea4ea3ea59560ed8cd15'
+          m={'tag':'v1.0.14','windows_version':'1.0.13 (unchanged)','mac_version':'1.0.14','files':[{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(Path('packages').glob('*.zip'))]}
+          Path('packages/release-manifest.json').write_text(json.dumps(m,indent=2))
+          Path('packages/SHA256SUMS.txt').write_text(''.join(f["sha256"]+'  '+f['name']+chr(10) for f in m['files']))
+          Path('evidence/mac-validation.json').write_text(json.dumps({'passed':True,'builds':summaries},indent=2))
+          shutil.copyfile(root/'mac-v114-osx-arm64/evidence/RELEASE-NOTES.md','RELEASE-NOTES.md')
+          Path('publish_verified.py').write_bytes(gzip.decompress(base64.b64decode('H4sIAAAAAAACA8VUO2/jRhDu+SuIa4Y8ryjfwQkCGiycRIkPyJ0NSy4CgRBW5FLcmOQSu0s/YqhJkTrpUqVMmvtn8Y/IDJeSdSc7yKNIQ+5jduab+b6ZQqvab7ktK7n0Zd0qbf1z3HrD+jujGqYMM92y1SoTxrCSG7L2tGhVokwkmmupVTOHr9/MTi8/X1xMzs+mb2ZnF99CesyNEeimt00gKzlvjeHVqFFKK9WsSjk+77T+Upgr8OqEwkWV4rkJCEUALc+u+EqYsRaV4EaMat7IQhgbkSmEkRY8X1hxawPRZCqXzSqBzhajzyAMjy1fJfUc8PcIhc4SuH4VHUavjsAbTvcCi2uZo0cxrnk2uuaVzLmVaLMXNgzniBK95JD60vgz3QmvUVaYxHm6mHwzOZlORu/OZpNpVOd/DdrLReGvyoDrlWFLld8l71QjWFaK7Coh32HsYTltpxv/kZRId00wh1UJ7CW9TJls2s72b31Z+OSIwPV7URnhEs67ujUBXYYs4y06FQvVWXpJoRhBdCsXv/86iLyVAemG1cKWKncot3gJJOFI5oCGwMgy9QiJM4/p8gBvRyN3AIMfZ7SBi2XsIe+Y93kBgxGk2zrskLdbuTAyNsd0wp5ki2A+1BSE42IODa8FMlco7Re+bHzUSyErvE3Tg48ejKenJ68/+XR6+XYa2VsLYeqJ21ZkVuTJfRuRpzhoMSpHWeBvYeT3goEpOb6K4WDonMgdoGWvg+UdagVlFJXiNpcYhjTV42kJj8O+9lotlU4wv6GkBVBTmfE9/dab/jBj1Dce4ncN6UDbVxwZDz0sbO8kcmVD4YkkOezl1L/d7T5nuKkfcUJcDIZzyDUvLKT41t92eH8VrYQNQNZ1Z/myEhD6vMn9e76pcxzgksqC4HDl8oXU5csp320Mlzik6yTZVJnB5FYai/3it92yktnG2s9lUQhtjvGg6AwZ4KxpiGSEiMk0iOott1lJV1t42+e8IirunFdTijwGtgVS2rpadLpCmMcfDYet/WiT/zAfbrS0wrX4TqcNRkw0hlqNm0xKxw72K3q0yeuQ7Y2EY80lYpzeGStqLIANDkOPmpiazFUfjg6PgKq35U1ozXY3jyxT5z4jHuwrnN0zYPc0Mxc9ZTGuGG41MrvIVF1LixlD/MTkx/ZAWh3TMTz8/vPDD+/9h19+fPj1pz9+e+9vZi4D6k6I+yHJBi3F/ZiBVosBDMR9Ydah12t+c8qga0miwAjXy5q3gbGaObGEOBdGWaWWS6FpRowoPWKyVWno/Y0C0N6x/kLmL9I1zmOe2Y5XyX+TsPdhl2wbqO+OIcKOyi/7FEX+qE9y5NfS1KRh+FepILcnsy9Oidyh5E55+zVnUPMrsai4pcxisEgN/ENe1+Fezo9TweX91ETZv9hBl3r/R/t5w/g43wTbnx/PTAvveUXEzulWVKSkpVY3WLFFrm4a4t95YU+rzfsTnRwg8LoJAAA=')))
+          shutil.copyfile('packages/release-manifest.json','evidence/release-manifest.json')
+          PYCODE
+          python3 publish_verified.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-v114-evidence
+          path: evidence
+          retention-days: 90
