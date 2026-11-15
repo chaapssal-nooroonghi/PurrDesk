@@ -1,0 +1,76 @@
+name: Inspect Framework DPI transition handling
+on:
+  push:
+    paths: ['.github/workflows/dpi-transition-inspect.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: windows-latest
+    steps:
+      - name: Inspect same WinForms runtime and configuration as v108
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory output | Out-Null
+          gh api repos/chaapssal-nooroonghi/PurrDesk/actions/artifacts/14140141032/zip > original.zip
+          if($LASTEXITCODE -ne 0){throw 'Artifact download failed'}
+          Expand-Archive original.zip original
+          [IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path original/Jipsa-Yeopjari-1.0.8.0-Store.msix), "$pwd/layout")
+          Copy-Item layout/PurrDesk.exe.config probe.exe.config
+          @'
+          using System;
+          using System.Drawing;
+          using System.Reflection;
+          using System.Runtime.InteropServices;
+          using System.Windows.Forms;
+          class Probe {
+            [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
+            [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h,int m,IntPtr w,IntPtr l);
+            [STAThread] static void Main() {
+              Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+              Console.WriteLine("Runtime="+typeof(Form).Assembly.Location);
+              foreach(Type t in typeof(Form).Assembly.GetTypes()) {
+                if(t.Name!="DpiHelper")continue;
+                Console.WriteLine("TYPE "+t.FullName);
+                foreach(PropertyInfo p in t.GetProperties(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)) {
+                  if(p.GetIndexParameters().Length!=0 || p.PropertyType!=typeof(bool))continue;
+                  try {Console.WriteLine(p.Name+"="+p.GetValue(null,null));}catch(Exception e){Console.WriteLine(p.Name+":"+e.GetType().Name);}
+                }
+              }
+              foreach(bool cancel in new[]{false,true}) using(var f=new Form()) {
+                f.AutoScaleMode=AutoScaleMode.Dpi; f.AutoScaleDimensions=new SizeF(96,96);
+                f.ClientSize=new Size(300,200);f.Controls.Add(new Button{Text="test",Width=100,Height=30});
+                f.DpiChanged+=(s,e)=>{Console.WriteLine("EVENT old="+e.DeviceDpiOld+" new="+e.DeviceDpiNew+" cancel="+cancel);e.Cancel=cancel;};
+                f.Show();Application.DoEvents();
+                Console.WriteLine("BEFORE cancel="+cancel+" DeviceDpi="+f.DeviceDpi+" WindowDpi="+GetDpiForWindow(f.Handle)+" Size="+f.Size);
+                var p=Marshal.AllocHGlobal(16);Marshal.Copy(new[]{10,10,610,410},0,p,4);
+                try {SendMessage(f.Handle,0x02E0,new IntPtr((192<<16)|192),p);}finally{Marshal.FreeHGlobal(p);}
+                Application.DoEvents();
+                Console.WriteLine("AFTER cancel="+cancel+" DeviceDpi="+f.DeviceDpi+" WindowDpi="+GetDpiForWindow(f.Handle)+" Size="+f.Size);
+              }
+            }
+          }
+          '@ | Set-Content probe.cs
+          $mt=(Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/mt.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $mt '-inputresource:layout/PurrDesk.exe;#1' '-out:probe.manifest'
+          if($LASTEXITCODE -ne 0){throw 'Manifest extraction failed'}
+          $csc="$env:WINDIR/Microsoft.NET/Framework64/v4.0.30319/csc.exe"
+          & $csc /nologo /target:exe /platform:x64 /r:System.Windows.Forms.dll /r:System.Drawing.dll /win32manifest:probe.manifest /out:probe.exe probe.cs
+          if($LASTEXITCODE -ne 0){throw 'Compile failed'}
+          & ./probe.exe | Tee-Object output/with-manifest.txt
+          [xml]$manifest=Get-Content probe.manifest -Raw
+          foreach($node in @($manifest.SelectNodes("//*[local-name()='dpiAware' or local-name()='dpiAwareness']"))){$null=$node.ParentNode.RemoveChild($node)}
+          $manifest.Save("$pwd/config-only.manifest")
+          & $csc /nologo /target:exe /platform:x64 /r:System.Windows.Forms.dll /r:System.Drawing.dll /win32manifest:config-only.manifest /out:probe.exe probe.cs
+          & ./probe.exe | Tee-Object output/config-only.txt
+          Copy-Item "$env:WINDIR/Microsoft.NET/Framework64/v4.0.30319/System.Windows.Forms.dll" output
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dpi-transition-runtime-inspection
+          path: output
+          retention-days: 7
