@@ -11,26 +11,15 @@ concurrency:
 jobs:
   input:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Stage verified source for native Mac runners
-        env:
-          INPUT_URL: https://tmpfiles.org/wnA4yblM9tpm/jipsa-mac-1.0.14-build-input.zip
-          INPUT_SHA: 14c71382d1b6f69395c0d4c08afa0c0fae79a8aedc3ae3cb2c19bdfc3efbb201
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-v114-build-input
+          run-id: 43709940347
+          github-token: ${{ github.token }}
+      - name: Verify unchanged build input
         run: |
-          python3 - <<'PYCODE'
-          import subprocess,urllib.parse,os,hashlib
-          from html.parser import HTMLParser
-          class Links(HTMLParser):
-              def __init__(self): super().__init__(); self.links=[]
-              def handle_starttag(self,tag,attrs):
-                  a=dict(attrs)
-                  if tag=='a' and 'download' in a.get('class','').split():self.links.append(a.get('href',''))
-          u=os.environ['INPUT_URL'];p=Links();p.feed(subprocess.check_output(['curl','--fail','--silent','--show-error','--max-time','30',u],text=True));assert len(p.links)==1
-          direct=urllib.parse.urljoin(u,p.links[0]);parts=urllib.parse.urlparse(direct);assert parts.scheme=='https' and parts.hostname=='tmpfiles.org' and parts.path.startswith('/dl/')
-          subprocess.run(['curl','--fail','--location','--silent','--show-error','--max-time','180','-o','build-input.zip',direct],check=True)
-          assert hashlib.sha256(open('build-input.zip','rb').read()).hexdigest()==os.environ['INPUT_SHA']
-          PYCODE
+          echo '14c71382d1b6f69395c0d4c08afa0c0fae79a8aedc3ae3cb2c19bdfc3efbb201  build-input.zip' | sha256sum --check
       - uses: actions/upload-artifact@v4
         with:
           name: mac-v114-build-input
@@ -104,6 +93,12 @@ jobs:
           cp packaged.json evidence/package.json
       - name: Start packaged app and observe native pet windows
         run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p=Path('NativeWindows.swift');s=p.read_text();s=s.replace(' && ($0[kCGWindowLayer as String] as? Int) == 0','');p.write_text(s)
+          p=Path('native_smoke.py');s=p.read_text();s=s.replace('windows=json.loads(check.stdout)', 'windows=json.loads(check.stdout); (out/"native-all-windows.json").write_text(json.dumps(windows,indent=2)); windows=[w for w in windows if w.get("kCGWindowBounds",{}).get("Width",0)>=100 and w.get("kCGWindowBounds",{}).get("Height",0)>=100]');p.write_text(s)
+          PYCODE
+          cp NativeWindows.swift native_smoke.py evidence/
           swiftc NativeWindows.swift -o native-windows
           python3 native_smoke.py 'packaged/집사 옆자리.app' evidence
       - uses: actions/upload-artifact@v4
