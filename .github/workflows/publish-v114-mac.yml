@@ -9,7 +9,35 @@ concurrency:
   group: purrdesk-release
   cancel-in-progress: false
 jobs:
+  input:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Stage verified source for native Mac runners
+        env:
+          INPUT_URL: https://tmpfiles.org/wnA4yblM9tpm/jipsa-mac-1.0.14-build-input.zip
+          INPUT_SHA: 14c71382d1b6f69395c0d4c08afa0c0fae79a8aedc3ae3cb2c19bdfc3efbb201
+        run: |
+          python3 - <<'PYCODE'
+          import subprocess,urllib.parse,os,hashlib
+          from html.parser import HTMLParser
+          class Links(HTMLParser):
+              def __init__(self): super().__init__(); self.links=[]
+              def handle_starttag(self,tag,attrs):
+                  a=dict(attrs)
+                  if tag=='a' and 'download' in a.get('class','').split():self.links.append(a.get('href',''))
+          u=os.environ['INPUT_URL'];p=Links();p.feed(subprocess.check_output(['curl','--fail','--silent','--show-error','--max-time','30',u],text=True));assert len(p.links)==1
+          direct=urllib.parse.urljoin(u,p.links[0]);parts=urllib.parse.urlparse(direct);assert parts.scheme=='https' and parts.hostname=='tmpfiles.org' and parts.path.startswith('/dl/')
+          subprocess.run(['curl','--fail','--location','--silent','--show-error','--max-time','180','-o','build-input.zip',direct],check=True)
+          assert hashlib.sha256(open('build-input.zip','rb').read()).hexdigest()==os.environ['INPUT_SHA']
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-v114-build-input
+          path: build-input.zip
+          retention-days: 90
   mac:
+    needs: input
     strategy:
       fail-fast: false
       matrix:
@@ -31,25 +59,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.404'
-      - name: Download and verify fixed source snapshot
-        env:
-          INPUT_URL: https://tmpfiles.org/wnA4yblM9tpm/jipsa-mac-1.0.14-build-input.zip
-          INPUT_SHA: 14c71382d1b6f69395c0d4c08afa0c0fae79a8aedc3ae3cb2c19bdfc3efbb201
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-v114-build-input
+      - name: Extract verified source snapshot
         run: |
-          python3 - <<'PYCODE'
-          import urllib.request,urllib.parse,os,hashlib,zipfile
-          from html.parser import HTMLParser
-          class Links(HTMLParser):
-              def __init__(self): super().__init__(); self.links=[]
-              def handle_starttag(self,tag,attrs):
-                  a=dict(attrs)
-                  if tag=='a' and 'download' in a.get('class','').split(): self.links.append(a.get('href',''))
-          u=os.environ['INPUT_URL'];p=Links();p.feed(urllib.request.urlopen(u,timeout=30).read().decode());assert len(p.links)==1
-          direct=urllib.parse.urljoin(u,p.links[0]);parts=urllib.parse.urlparse(direct);assert parts.scheme=='https' and parts.hostname=='tmpfiles.org' and parts.path.startswith('/dl/')
-          data=urllib.request.urlopen(direct,timeout=120).read();assert hashlib.sha256(data).hexdigest()==os.environ['INPUT_SHA']
-          open('build-input.zip','wb').write(data)
-          with zipfile.ZipFile('build-input.zip') as z: z.extractall('.')
-          PYCODE
+          python3 -m zipfile -e build-input.zip .
           mkdir -p evidence packages
           cp changes.patch RELEASE-NOTES.md evidence/
           sw_vers > evidence/build-environment.txt
@@ -103,12 +118,6 @@ jobs:
         with:
           name: mac-v114-failure-${{ matrix.rid }}
           path: evidence
-      - uses: actions/upload-artifact@v4
-        if: always() && matrix.rid == 'osx-arm64'
-        with:
-          name: mac-v114-build-input
-          path: build-input.zip
-          retention-days: 90
   publish:
     needs: mac
     runs-on: ubuntu-latest
