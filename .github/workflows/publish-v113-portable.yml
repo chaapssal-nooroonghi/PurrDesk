@@ -12,6 +12,8 @@ jobs:
   publish:
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
     steps:
       - name: Verify inputs, package portable app and test real launcher
         shell: pwsh
