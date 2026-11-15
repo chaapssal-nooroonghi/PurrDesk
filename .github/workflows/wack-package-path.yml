@@ -1,0 +1,85 @@
+name: WACK official package-path comparison
+on:
+  push:
+    branches: [diagnostics/wack-package-path-107]
+    paths: [.github/workflows/wack-package-path.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - name: Check unchanged 1.0.7 through official package-file entry point
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:GITHUB_WORKSPACE 'diagnostics'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $package=$null;$cert=$null;$trusted=$null;$msix=$null
+          try {
+           gh api repos/chaapssal-nooroonghi/PurrDesk/actions/artifacts/14111501753/zip > original.zip
+           if($LASTEXITCODE -ne 0){throw 'Original artifact download failed'}
+           Expand-Archive original.zip original
+           $msix=(Get-ChildItem original -Recurse -Filter Jipsa-Yeopjari-1.0.7.0-Store.msix | Select-Object -First 1).FullName
+           if((Get-FileHash $msix).Hash.ToLowerInvariant() -ne 'a1db12d550a8b848d2bf559cc2730d834d280f888a3d8167b696474e7e16ea45'){throw 'Original SHA mismatch'}
+           $kits="${env:ProgramFiles(x86)}\Windows Kits\10"
+           $wack=Join-Path $kits 'App Certification Kit/appcert.exe'
+           if(!(Test-Path $wack)){
+            $sdk=Join-Path $env:RUNNER_TEMP 'winsdksetup.exe'
+            Invoke-WebRequest 'https://download.microsoft.com/download/e6cfffdc-0d3e-4c6c-96d7-d491da459a07/KIT_BUNDLE_WINDOWSSDK_MEDIACREATION/winsdksetup.exe' -OutFile $sdk
+            $sig=Get-AuthenticodeSignature $sdk
+            if($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'Microsoft Corporation'){throw 'Invalid SDK signature'}
+            $p=Start-Process $sdk -ArgumentList '/quiet','/norestart','/features','OptionId.WindowsSoftwareLogoToolkit' -PassThru
+            if(!$p.WaitForExit(600000)){throw 'SDK install timeout'}
+            if($p.ExitCode -notin 0,3010){throw "SDK installer exit $($p.ExitCode)"}
+           }
+           if(!(Test-Path $wack)){throw 'WACK not installed'}
+           (Get-Item $wack).VersionInfo | Format-List | Out-File "$out/wack-version.txt"
+           Get-ComputerInfo -Property WindowsProductName,WindowsVersion,OsBuildNumber | Format-List | Out-File "$out/os.txt"
+           $signed=Join-Path $env:RUNNER_TEMP 'ci-test-only.msix';Copy-Item $msix $signed
+           $cert=New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=DE7DDEC8-9C61-4EC5-BFE6-81123A68DFC1' -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddDays(1)
+           $cer=Join-Path $env:RUNNER_TEMP 'ci-test-only.cer';Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+           $trusted=Import-Certificate -FilePath $cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+           $sign=(Get-ChildItem "$kits/bin/*/x64/signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+           & $sign sign /fd SHA256 /sha1 $cert.Thumbprint $signed
+           if($LASTEXITCODE -ne 0){throw 'Test-copy signing failed'}
+           # Documented package-file path; no preinstallation or permission changes.
+           & $wack reset
+           $p=Start-Process $wack -ArgumentList 'test','-appxpackagepath',$signed,'-reportoutputpath',"$out/package-path-report.xml" -PassThru -RedirectStandardOutput "$out/package-path-stdout.txt" -RedirectStandardError "$out/package-path-stderr.txt"
+           if(!$p.WaitForExit(600000)){throw 'Package-path WACK timeout'}
+           "WACK package path exit=$($p.ExitCode)" | Tee-Object "$out/package-path-exit.txt"
+           $package=Get-AppxPackage -Name 'Chaapssal-Nooroongghi.10202156D8DE9'
+           if($package){$package | Select-Object Name,Version,PackageFullName,InstallLocation | ConvertTo-Json | Set-Content "$out/installed.json"}
+           if(Test-Path "$out/package-path-report.xml"){
+            [xml]$r=Get-Content "$out/package-path-report.xml" -Raw
+            $r.SelectNodes('//TEST') | ForEach-Object { [pscustomobject]@{Id=$_.INDEX;Name=$_.NAME;Result=$_.RESULT;Messages=@($_.MESSAGES.MESSAGE | ForEach-Object {$_.TEXT})} } | ConvertTo-Json -Depth 5 | Tee-Object "$out/results.json"
+           }
+           # Keep exact Microsoft analyzers for offline inspection, not executable replacements.
+           $analyzers=Join-Path $out 'analyzers';New-Item -ItemType Directory $analyzers | Out-Null
+           foreach($name in @('binaryinfo.dll','microsoft.windows.softwarelogo.tests.dll','microsoft.windows.softwarelogo.shared.dll')){
+            Copy-Item (Join-Path (Split-Path $wack) $name) $analyzers
+           }
+          } catch {
+           $_ | Out-String | Tee-Object "$out/error.txt"
+           throw
+          } finally {
+           $package=Get-AppxPackage -Name 'Chaapssal-Nooroongghi.10202156D8DE9' -ErrorAction SilentlyContinue
+           if($package){Remove-AppxPackage -Package $package.PackageFullName}
+           if($trusted){Remove-Item ("Cert:\LocalMachine\TrustedPeople\"+$trusted.Thumbprint)}
+           if($cert){Remove-Item ("Cert:\CurrentUser\My\"+$cert.Thumbprint) -DeleteKey}
+           if($msix){Get-FileHash $msix | Format-List | Out-File "$out/original-hash-after.txt"}
+           if(Test-Path "$env:RUNNER_TEMP/ci-test-only.msix"){Remove-Item "$env:RUNNER_TEMP/ci-test-only.msix"}
+           if(Test-Path "$env:RUNNER_TEMP/ci-test-only.cer"){Remove-Item "$env:RUNNER_TEMP/ci-test-only.cer"}
+           'No ACL changes, exclusions, result rewriting, package-context WACK, or Store submission. Test certificate and installation cleaned up in disposable CI.' | Set-Content "$out/scope.txt"
+          }
+      - name: Upload diagnosis (no signed package or certificate)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wack-official-package-path-107
+          path: diagnostics
+          retention-days: 7
