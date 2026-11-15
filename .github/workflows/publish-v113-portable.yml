@@ -46,10 +46,37 @@ jobs:
           Copy-Item packages/release-manifest.json,packages/SHA256SUMS.txt,RELEASE-NOTES.md evidence
           Expand-Archive old/Jipsa-Yeopjari-Windows.zip baseline
           Expand-Archive packages/Jipsa-Yeopjari-Windows.zip portable
-          Copy-Item inputs/PortableChecks.exe portable/data
-          Copy-Item 'portable/data/집사 옆자리.exe.config' portable/data/PortableChecks.exe.config
-          & ./portable/data/PortableChecks.exe "$pwd/baseline" "$pwd/portable" "$pwd/evidence/portable-checks.txt"
+          $shell=New-Object -ComObject WScript.Shell
+          $shortcut=$shell.CreateShortcut("$pwd/portable/집사 옆자리 바로가기.lnk")
+          "Original shortcut target: $($shortcut.TargetPath)" | Out-File evidence/shortcut.txt
+          $shortcut.TargetPath="$pwd/portable/집사 옆자리.exe"
+          $shortcut.WorkingDirectory='.'
+          $shortcut.Description='집사 옆자리'
+          $shortcut.Save()
+          # Validate relocation: the shortcut's original absolute target no longer exists.
+          Move-Item portable relocated
+          Copy-Item inputs/PortableChecks.exe relocated/data
+          Copy-Item 'relocated/data/집사 옆자리.exe.config' relocated/data/PortableChecks.exe.config
+          & ./relocated/data/PortableChecks.exe "$pwd/baseline" "$pwd/relocated" "$pwd/evidence/portable-checks.txt"
           if($LASTEXITCODE -ne 0){throw 'Portable launcher/startup/data regression failed; release not published'}
+          @'
+          from pathlib import Path
+          import zipfile,json,hashlib
+          path=Path('packages/Jipsa-Yeopjari-Windows.zip')
+          with zipfile.ZipFile(path) as z: entries=[(i,z.read(i)) for i in z.infolist()]
+          link=Path('relocated/집사 옆자리 바로가기.lnk').read_bytes()
+          with zipfile.ZipFile(path,'w') as z:
+              for info,data in entries: z.writestr(info,link if info.filename=='집사 옆자리 바로가기.lnk' else data,compresslevel=9)
+          m=json.loads(Path('packages/release-manifest.json').read_text(encoding='utf-8'))
+          m['changed_windows_entries'].append('집사 옆자리 바로가기.lnk')
+          for f in m['files']:
+              p=Path('packages')/f['name'];f['bytes']=p.stat().st_size;f['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+          Path('packages/release-manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2),encoding='utf-8')
+          Path('packages/SHA256SUMS.txt').write_text(''.join(f"{f['sha256']}  {f['name']}
+" for f in m['files']),encoding='utf-8')
+          '@ | python -
+          if($LASTEXITCODE -ne 0){throw 'Final shortcut packaging failed'}
+          Copy-Item packages/release-manifest.json,packages/SHA256SUMS.txt evidence -Force
           $manifest=Get-Content packages/release-manifest.json -Raw | ConvertFrom-Json
           foreach($f in $manifest.files){if((Get-FileHash (Join-Path packages $f.name)).Hash.ToLowerInvariant() -ne $f.sha256){throw 'Package mutated during tests'}}
       - name: Upload verified assets and publish immutable release
