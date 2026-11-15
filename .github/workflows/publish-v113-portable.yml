@@ -47,14 +47,16 @@ jobs:
           Expand-Archive old/Jipsa-Yeopjari-Windows.zip baseline
           Expand-Archive packages/Jipsa-Yeopjari-Windows.zip portable
           $shell=New-Object -ComObject WScript.Shell
-          $shortcut=$shell.CreateShortcut("$pwd/portable/집사 옆자리 바로가기.lnk")
-          "Original shortcut target: $($shortcut.TargetPath)" | Out-File evidence/shortcut.txt
-          $shortcut.TargetPath="$pwd/portable/집사 옆자리.exe"
-          $shortcut.WorkingDirectory='.'
+          $linkPath=Join-Path (Resolve-Path portable).Path '집사 옆자리 바로가기.lnk'
+          Remove-Item -LiteralPath $linkPath
+          $shortcut=$shell.CreateShortcut($linkPath)
+          $shortcut.TargetPath=(Resolve-Path 'portable/집사 옆자리.exe').Path
+          $shortcut.WorkingDirectory='' 
           $shortcut.Description='집사 옆자리'
           $shortcut.Save()
           # Validate relocation: the shortcut's original absolute target no longer exists.
-          Move-Item portable relocated
+          Copy-Item portable relocated -Recurse
+          Remove-Item portable -Recurse -Force
           Copy-Item inputs/PortableChecks.exe relocated/data
           Copy-Item 'relocated/data/집사 옆자리.exe.config' relocated/data/PortableChecks.exe.config
           & ./relocated/data/PortableChecks.exe "$pwd/baseline" "$pwd/relocated" "$pwd/evidence/portable-checks.txt"
