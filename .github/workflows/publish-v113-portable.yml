@@ -93,3 +93,4 @@ jobs:
           name: release-v113-evidence
           path: evidence
           retention-days: 90
+# Re-run packaging verification after shortcut path correction.
