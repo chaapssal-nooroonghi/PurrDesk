@@ -1,0 +1,223 @@
+{
+  "name": "Build test and release four pets 1.0.16",
+  "on": {
+    "push": {
+      "paths": [
+        ".github/workflows/publish-v116.yml"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "purrdesk-release",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "input": {
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v115-build-input",
+            "run-id": 43805515406,
+            "github-token": "${{ github.token }}",
+            "path": "prior"
+          }
+        },
+        {
+          "name": "Apply minimal edits without publishing existing application source",
+          "run": "python3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,zipfile,hashlib,difflib\nroot=Path('assembled');root.mkdir()\nwith zipfile.ZipFile('prior/build-input.zip') as z:z.extractall(root)\npatch=json.loads(r'''{\n  \"edits\": {\n    \"PortableChecks/Program.cs\": {\n      \"before_sha256\": \"c66f20b2f7f705c15ebc12ddedeaf308e95137e8c9791ae6296b500a22fa4da5\",\n      \"edits\": [\n        [\n          4485,\n          4485,\n          \",int expected=2\"\n        ],\n        [\n          4775,\n          4776,\n          \"expected\"\n        ],\n        [\n          4800,\n          4800,\n          \"{expec\"\n        ],\n        [\n          4801,\n          4803,\n          \"ed}\"\n        ],\n        [\n          5022,\n          5022,\n          \"}\\n    static void FourPets(string folder)\\n    {\\n        string config=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),\\\"CatDesk\\\",\\\"settings.json\\\");\\n        byte[] original=File.ReadAllBytes(config);Process? process=null;\\n        try\\n        {\\n            var a=Assembly.LoadFrom(Path.Combine(folder,\\\"data\\\",\\\"집사 옆자리.exe\\\"));var storage=a.GetType(\\\"CatDesk.Storage\\\",true)!;\\n            object roster=Call(storage,\\\"Load\\\",config,null)!;\\n            var cats=(System.Collections.IList)roster.GetType().GetProperty(\\\"Cats\\\")!.GetValue(roster)!;\\n            var add=roster.GetType().GetMethod(\\\"TryAdd\\\")!;\\n            object first=cats[0]!;add.Invoke(roster,new[]{first});object fourth=add.Invoke(roster,new[]{first})!;\\n            Check(cats.Count==4&&fourth!=null,\\\"upgraded default roster accepts the third and fourth pets\\\");\\n            if(fourth==null)throw new Exception(\\\"Fourth pet was refused\\\");\\n            var type=fourth.GetType();\\n            type.GetProperty(\\\"Name\\\")!.SetValue(fourth,\\\"네 번째 검사 귀염둥이\\\");\\n            type.GetProperty(\\\"IdleImage\\\")!.SetValue(fourth,type.GetProperty(\\\"IdleImage\\\")!.GetValue(first));\\n            type.GetProperty(\\\"Size\\\")!.SetValue(fourth,65);\\n            type.GetProperty(\\\"CountdownFormat\\\")!.SetValue(fourth,\\\"초\\\");\\n            Check(add.Invoke(roster,new[]{first})==null&&cats.Count==4,\\\"fifth pet is refused without altering the roster\\\");\\n            Call(storage,\\\"Save\\\",roster,config);\\n            var before=Data();\\n            process=Launch(folder,false);Windows(process,true,4);Stop(process);process=null;\\n            Check(Same(before,Data()),\\\"four-pet launch preserves every settings/photo file hash\\\");\\n            process=Launch(folder,true);Windows(process,true,4);Stop(process);process=null;\\n            Check(Same(before,Data()),\\\"four pets survive restarting from the portable shortcut\\\");\\n            object loaded=Call(storage,\\\"Load\\\",config,null)!;\\n            var saved=(System.Collections.IList)loaded.GetType().GetProperty(\\\"Cats\\\")!.GetValue(loaded)!;\\n            Check(saved.Count==4&&(string)type.GetProperty(\\\"Name\\\")!.GetValue(saved[3])! == \\\"네 번째 검사 귀염둥이\\\"&&(int)type.GetProperty(\\\"Size\\\")!.GetValue(saved[3])! == 65&&(string)type.GetProperty(\\\"CountdownFormat\\\")!.GetValue(saved[3])! == \\\"초\\\",\\\"fourth pet's independent settings survive real process restarts\\\");\\n        }\\n        finally { if(process!=null)Stop(process);File.WriteAllBytes(config,original); }\\n    \"\n        ],\n        [\n          7361,\n          7362,\n          \"5\"\n        ],\n        [\n          7372,\n          7373,\n          \"6\"\n        ],\n        [\n          7722,\n          7723,\n          \"6\"\n        ],\n        [\n          7753,\n          7754,\n          \"6\"\n        ],\n        [\n          7873,\n          7874,\n          \"6\"\n        ],\n        [\n          7907,\n          7908,\n          \"6\"\n        ],\n        [\n          7933,\n          7933,\n          \"(candidate);\\n            FourPets\"\n        ]\n      ]\n    },\n    \"RELEASE-NOTES.md\": {\n      \"before_sha256\": \"9226fca8b203f52b5bce744c453238eef4f22a9a6a7a56f323d0a9f2e086cb20\",\n      \"edits\": [\n        [\n          0,\n          8,\n          \"귀염둥이\"\n        ],\n        [\n          10,\n          12,\n          \"최대 4마리까지 동시에 띄울\"\n        ],\n        [\n          14,\n          15,\n          \"\"\n        ],\n        [\n          16,\n          66,\n          \"있\"\n        ],\n        [\n          72,\n          74,\n          \"-\"\n        ],\n        [\n          75,\n          77,\n          \"우클릭 및 트레이/메뉴 막대의 추가 메뉴가 4마리 기준으로\"\n        ],\n        [\n          80,\n          81,\n          \"됩니다.\\n-\"\n        ],\n        [\n          82,\n          84,\n          \"네\"\n        ],\n        [\n          85,\n          87,\n          \"번째 귀염둥이의 사진과 개별 설정\"\n        ],\n        [\n          89,\n          108,\n          \"저장\"\n        ],\n        [\n          114,\n          118,\n          \"불러올\"\n        ],\n        [\n          119,\n          122,\n          \"수 있습\"\n        ],\n        [\n          125,\n          125,\n          \"\\n-\"\n        ],\n        [\n          126,\n          129,\n          \"\"\n        ],\n        [\n          130,\n          130,\n          \"본 포함된 누룽지·찹쌀이\"\n        ],\n        [\n          132,\n          134,\n          \"기존\"\n        ],\n        [\n          135,\n          138,\n          \"사진·설정은\"\n        ],\n        [\n          139,\n          153,\n          \"유지됩\"\n        ],\n        [\n          165,\n          166,\n          \", Apple 칩 Mac, Intel\"\n        ],\n        [\n          184,\n          202,\n          \"\"\n        ],\n        [\n          203,\n          353,\n          \"\"\n        ]\n      ]\n    },\n    \"mac/CatDesk/CatAppContext.cs\": {\n      \"before_sha256\": \"c0e3cea56ed872c12e3c3ff6799eac6bb7af804a7c18948bb231d411536693ce\",\n      \"edits\": [\n        [\n          84,\n          86,\n          \"fou\"\n        ],\n        [\n          87,\n          89,\n          \"\"\n        ],\n        [\n          1909,\n          1909,\n          \"$\"\n        ],\n        [\n          1919,\n          1920,\n          \"{CatRoster.MaxCats}\"\n        ]\n      ]\n    },\n    \"mac/CatDesk/Core.cs\": {\n      \"before_sha256\": \"c800f673c920f451fe222c6c93ffd78372025513b92df4a54fbfe4b855fe95e8\",\n      \"edits\": [\n        [\n          6111,\n          6112,\n          \"4\"\n        ]\n      ]\n    },\n    \"mac/CatDesk.Checks/Program.cs\": {\n      \"before_sha256\": \"7c7ec91aa9d0e3e54025df7296e87361aecf9f25f030a1f8e808057d5138592d\",\n      \"edits\": [\n        [\n          25735,\n          25735,\n          \" var fourth = house.TryAdd(first)!;\"\n        ],\n        [\n          25762,\n          25763,\n          \"4\"\n        ],\n        [\n          25797,\n          25802,\n          \"Fo\"\n        ],\n        [\n          25803,\n          25810,\n          \"\"\n        ],\n        [\n          25811,\n          25813,\n          \"\"\n        ],\n        [\n          25819,\n          25819,\n          \"can b\"\n        ],\n        [\n          25820,\n          25821,\n          \" added; a \"\n        ],\n        [\n          25822,\n          25823,\n          \"ifth is \"\n        ],\n        [\n          25824,\n          25825,\n          \"efus\"\n        ],\n        [\n          26165,\n          26165,\n          \"fourth.Name = \\\"넷째\\\"; fourth.IdleImage = \\\"fourth.png\\\"; fourth.X = 1400;\\n\"\n        ],\n        [\n          26391,\n          26391,\n          \"snapshot.Cats[3] == fourth && \"\n        ],\n        [\n          26541,\n          26542,\n          \"3\"\n        ],\n        [\n          26571,\n          26571,\n          \") && house.Cats.Contains(fourth\"\n        ],\n        [\n          26684,\n          26685,\n          \"4\"\n        ],\n        [\n          27015,\n          27016,\n          \"4\"\n        ],\n        [\n          27035,\n          27036,\n          \"3\"\n        ],\n        [\n          27051,\n          27052,\n          \"4\"\n        ],\n        [\n          27092,\n          27094,\n          \"fou\"\n        ],\n        [\n          27095,\n          27097,\n          \"\"\n        ],\n        [\n          28464,\n          28464,\n          \"var loadedFourth = migrated.TryAdd(loadedFirst)!; loadedFourth.Name = \\\"넷째\\\"; loadedFourth.IdleImage = \\\"fourth.png\\\"; loadedFourth.X = 1400;\\n \"\n        ],\n        [\n          28559,\n          28560,\n          \"4\"\n        ],\n        [\n          28698,\n          28698,\n          \" && restored.Cats[3].Name == \\\"넷째\\\" && restored.Cats[3].IdleImage == \\\"fourth.png\\\" && restored.Cats[3].X == 1400\"\n        ],\n        [\n          28701,\n          28703,\n          \"Fou\"\n        ],\n        [\n          28704,\n          28706,\n          \"\"\n        ],\n        [\n          29084,\n          29084,\n          \"\\\" && saved.Cats[3].Name == \\\"넷째\\\" && saved.Cats[3].IdleImage == \\\"fourth.png\"\n        ]\n      ]\n    },\n    \"mac/PurrDesk.Mac/DesktopPets.cs\": {\n      \"before_sha256\": \"83aeb9cfb4b30df16ba523fea25884818f2e980e3bd4cd54a397b525d905cd46\",\n      \"edits\": [\n        [\n          2215,\n          2216,\n          \"{CatRoster.MaxCats}\"\n        ],\n        [\n          2250,\n          2251,\n          \"CatRoster.MaxCats\"\n        ]\n      ]\n    },\n    \"mac/PurrDesk.Mac/PetWindow.cs\": {\n      \"before_sha256\": \"3e939c46c5d89de4c9d22342be4726ebf86b0705cbdd9f776085711b5dd69a8f\",\n      \"edits\": [\n        [\n          5446,\n          5447,\n          \"{CatRoster.MaxCats}\"\n        ],\n        [\n          5485,\n          5486,\n          \"CatRoster.MaxCats\"\n        ]\n      ]\n    },\n    \"mac/PurrDesk.Mac/PurrDesk.Mac.csproj\": {\n      \"before_sha256\": \"0625671a8aef3ad5c97e5602ec00af7ba7f5bd0a4096a4335f540a72f736f190\",\n      \"edits\": [\n        [\n          69,\n          70,\n          \"6\"\n        ],\n        [\n          102,\n          103,\n          \"6\"\n        ],\n        [\n          141,\n          142,\n          \"6\"\n        ]\n      ]\n    },\n    \"mac/PurrDesk.Mac/package.py\": {\n      \"before_sha256\": \"c58fb4322dd50404334e8ff5f51b162b972031648a1edd943d2cdb8c95fb4307\",\n      \"edits\": [\n        [\n          2099,\n          2100,\n          \"6\"\n        ],\n        [\n          2122,\n          2123,\n          \"6\"\n        ]\n      ]\n    },\n    \"native_smoke.py\": {\n      \"before_sha256\": \"577d6fbcda1ee49110a7b94e43b873053035ba1b78e244e1f17d69749fc929f6\",\n      \"edits\": [\n        [\n          141,\n          141,\n          \";expected=int(sys.argv[3]) if len(sys.argv)>3 else 2\"\n        ],\n        [\n          852,\n          853,\n          \"\"\n        ],\n        [\n          854,\n          855,\n          \"=expected\"\n        ],\n        [\n          883,\n          884,\n          \"\"\n        ],\n        [\n          885,\n          886,\n          \"=expected\"\n        ],\n        [\n          887,\n          887,\n          \"f\"\n        ],\n        [\n          897,\n          897,\n          \"{expec\"\n        ],\n        [\n          898,\n          900,\n          \"ed}\"\n        ],\n        [\n          927,\n          927,\n          \", got {len(windows)}\"\n        ]\n      ]\n    },\n    \"publish_verified.py\": {\n      \"before_sha256\": \"824a45f44d40f8ec47eeecaf6ebaca4bddf7aec4b07bbf1338f421a64f70ae27\",\n      \"edits\": [\n        [\n          254,\n          255,\n          \"6\"\n        ],\n        [\n          1636,\n          1637,\n          \"6\"\n        ],\n        [\n          2098,\n          2099,\n          \"6\"\n        ]\n      ]\n    },\n    \"windows/CatDesk/CatAppContext.cs\": {\n      \"before_sha256\": \"d1c6790061053cbedfe76b8c5c68c6482100b4bbf77c3fba0d6f551fa88b3456\",\n      \"edits\": [\n        [\n          84,\n          86,\n          \"fou\"\n        ],\n        [\n          87,\n          89,\n          \"\"\n        ],\n        [\n          1968,\n          1968,\n          \"$\"\n        ],\n        [\n          1978,\n          1979,\n          \"{CatRoster.MaxCats}\"\n        ]\n      ]\n    },\n    \"windows/CatDesk/Core.cs\": {\n      \"before_sha256\": \"c800f673c920f451fe222c6c93ffd78372025513b92df4a54fbfe4b855fe95e8\",\n      \"edits\": [\n        [\n          6111,\n          6112,\n          \"4\"\n        ]\n      ]\n    },\n    \"windows/CatDesk.Checks/Program.cs\": {\n      \"before_sha256\": \"7c7ec91aa9d0e3e54025df7296e87361aecf9f25f030a1f8e808057d5138592d\",\n      \"edits\": [\n        [\n          25735,\n          25735,\n          \" var fourth = house.TryAdd(first)!;\"\n        ],\n        [\n          25762,\n          25763,\n          \"4\"\n        ],\n        [\n          25797,\n          25802,\n          \"Fo\"\n        ],\n        [\n          25803,\n          25810,\n          \"\"\n        ],\n        [\n          25811,\n          25813,\n          \"\"\n        ],\n        [\n          25819,\n          25819,\n          \"can b\"\n        ],\n        [\n          25820,\n          25821,\n          \" added; a \"\n        ],\n        [\n          25822,\n          25823,\n          \"ifth is \"\n        ],\n        [\n          25824,\n          25825,\n          \"efus\"\n        ],\n        [\n          26165,\n          26165,\n          \"fourth.Name = \\\"넷째\\\"; fourth.IdleImage = \\\"fourth.png\\\"; fourth.X = 1400;\\n\"\n        ],\n        [\n          26391,\n          26391,\n          \"snapshot.Cats[3] == fourth && \"\n        ],\n        [\n          26541,\n          26542,\n          \"3\"\n        ],\n        [\n          26571,\n          26571,\n          \") && house.Cats.Contains(fourth\"\n        ],\n        [\n          26684,\n          26685,\n          \"4\"\n        ],\n        [\n          27015,\n          27016,\n          \"4\"\n        ],\n        [\n          27035,\n          27036,\n          \"3\"\n        ],\n        [\n          27051,\n          27052,\n          \"4\"\n        ],\n        [\n          27092,\n          27094,\n          \"fou\"\n        ],\n        [\n          27095,\n          27097,\n          \"\"\n        ],\n        [\n          28464,\n          28464,\n          \"var loadedFourth = migrated.TryAdd(loadedFirst)!; loadedFourth.Name = \\\"넷째\\\"; loadedFourth.IdleImage = \\\"fourth.png\\\"; loadedFourth.X = 1400;\\n \"\n        ],\n        [\n          28559,\n          28560,\n          \"4\"\n        ],\n        [\n          28698,\n          28698,\n          \" && restored.Cats[3].Name == \\\"넷째\\\" && restored.Cats[3].IdleImage == \\\"fourth.png\\\" && restored.Cats[3].X == 1400\"\n        ],\n        [\n          28701,\n          28703,\n          \"Fou\"\n        ],\n        [\n          28704,\n          28706,\n          \"\"\n        ],\n        [\n          29084,\n          29084,\n          \"\\\" && saved.Cats[3].Name == \\\"넷째\\\" && saved.Cats[3].IdleImage == \\\"fourth.png\"\n        ]\n      ]\n    },\n    \"windows/Launcher/Launcher.csproj\": {\n      \"before_sha256\": \"1e408e049c2c833a1c9131290d76c8b70a18e8bf2759b77e1d8dd0100179edf4\",\n      \"edits\": [\n        [\n          70,\n          71,\n          \"6\"\n        ],\n        [\n          103,\n          104,\n          \"6\"\n        ],\n        [\n          142,\n          143,\n          \"6\"\n        ]\n      ]\n    },\n    \"windows/PurrDesk.Framework/PurrDesk.Framework.csproj\": {\n      \"before_sha256\": \"c3dec4153d3cece7615e11b92b817635ff0b2ab094623642fefc51e2e228ed62\",\n      \"edits\": [\n        [\n          69,\n          70,\n          \"16\"\n        ],\n        [\n          101,\n          102,\n          \"16\"\n        ],\n        [\n          139,\n          140,\n          \"16\"\n        ]\n      ]\n    }\n  },\n  \"new_tests\": {\n    \"PetLimitChecks.Mac/PetLimitChecks.csproj\": \"<Project Sdk=\\\"Microsoft.NET.Sdk\\\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>PurrDesk.Mac.Checks</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include=\\\"../mac/PurrDesk.Mac/PurrDesk.Mac.csproj\\\"/><PackageReference Include=\\\"Avalonia.Headless\\\" Version=\\\"11.3.23\\\" /></ItemGroup></Project>\\n\",\n    \"PetLimitChecks.Mac/Program.cs\": \"using Avalonia;\\nusing Avalonia.Controls;\\nusing Avalonia.Controls.ApplicationLifetimes;\\nusing Avalonia.Headless;\\nusing Avalonia.Styling;\\nusing Avalonia.Themes.Fluent;\\nusing Avalonia.Threading;\\nusing System.Reflection;\\nusing CatDesk;\\nusing PurrDesk.Mac;\\n\\nclass TestApp : Application { public override void Initialize() { RequestedThemeVariant=ThemeVariant.Light; Styles.Add(new FluentTheme()); } }\\nclass Program\\n{\\n    static int failures, count;\\n    static void Check(bool ok, string label) { count++; if(!ok) failures++; Console.WriteLine((ok?\\\"PASS \\\":\\\"FAIL \\\")+label); }\\n    static object Field(object o,string name)=>o.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(o)!;\\n    static ContextMenu Menu(PetWindow pet)=>(ContextMenu)typeof(PetWindow).GetMethod(\\\"BuildMenu\\\",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(pet,null)!;\\n    static void Menus(DesktopPets owner,List<PetWindow> pets,TrayIcon tray,int n,bool enabled)\\n    {\\n        owner.UpdateMenu();\\n        var add=tray.Menu!.Items.OfType<NativeMenuItem>().Single(i=>i.Header!.StartsWith(\\\"귀염둥이 추가하기\\\"));\\n        Check(add.Header==$\\\"귀염둥이 추가하기 ({n}/4)\\\"&&add.IsEnabled==enabled,\\\"menu-bar add entry at \\\"+n);\\n        foreach(var pet in pets)\\n        {\\n            var item=Menu(pet).Items.OfType<MenuItem>().Single(i=>i.Header?.ToString()?.StartsWith(\\\"귀염둥이 추가하기\\\")==true);\\n            Check(item.Header!.ToString()==$\\\"귀염둥이 추가하기 ({n}/4)\\\"&&item.IsEnabled==enabled,\\\"pet context add entry at \\\"+n);\\n        }\\n    }\\n    static int Main()\\n    {\\n        AppBuilder.Configure<TestApp>().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions{UseHeadlessDrawing=false}).SetupWithoutStarting();\\n        string work=Path.Combine(Path.GetTempPath(),\\\"four-pets-\\\"+Guid.NewGuid().ToString(\\\"N\\\"));Directory.CreateDirectory(work);\\n        byte[]? config=File.Exists(MacPaths.Config)?File.ReadAllBytes(MacPaths.Config):null;\\n        var pets=new List<PetWindow>();TrayIcon? tray=null;\\n        try\\n        {\\n            string path=Path.Combine(work,\\\"settings.json\\\");var roster=Storage.Load(path,Path.Combine(AppContext.BaseDirectory,\\\"defaults\\\"));\\n            Check(roster.Cats.Count==2&&roster.Cats[0].Name==\\\"누룽지\\\"&&roster.Cats[1].Name==\\\"찹쌀이\\\",\\\"bundled roster remains the original two pets\\\");\\n            roster.TryAdd(roster.Cats[0])!.Name=\\\"셋째\\\";\\n            var owner=new DesktopPets(new ClassicDesktopStyleApplicationLifetime(),roster);\\n            pets=(List<PetWindow>)Field(owner,\\\"pets\\\");\\n            var spawn=typeof(DesktopPets).GetMethod(\\\"Spawn\\\",BindingFlags.Instance|BindingFlags.NonPublic)!;\\n            for(int i=0;i<3;i++)spawn.Invoke(owner,[roster.Cats[i],i]);\\n            tray=new TrayIcon();typeof(DesktopPets).GetField(\\\"tray\\\",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(owner,tray);\\n            Menus(owner,pets,tray,3,true);\\n            owner.Add(roster.Cats[0]);Dispatcher.UIThread.RunJobs();\\n            foreach(var window in pets.Last().OwnedWindows.ToArray())window.Close();Dispatcher.UIThread.RunJobs();\\n            Check(owner.Count==4&&pets.All(p=>p.IsVisible),\\\"actual add action creates a fourth visible pet window\\\");\\n            Menus(owner,pets,tray,4,false);\\n            var fourth=roster.Cats[3];fourth.Name=\\\"넷째\\\";fourth.IdleImages=[roster.Cats[0].IdleImages[0]];fourth.IdleImage=fourth.IdleImages[0];fourth.Size=72;fourth.X=72;fourth.Y=100;fourth.CountdownFormat=\\\"초\\\";\\n            Storage.Save(roster,path);var restored=Storage.Load(path);\\n            Check(restored.Cats.Count==4&&restored.Cats[3].Name==\\\"넷째\\\"&&restored.Cats[3].IdleImages.SequenceEqual(fourth.IdleImages)&&restored.Cats[3].Size==72&&restored.Cats[3].X==72&&restored.Cats[3].CountdownFormat==\\\"초\\\",\\\"fourth photo, position, size and timer format survive save/load\\\");\\n            owner.Add(roster.Cats[0]);Check(owner.Count==4&&roster.Cats.Count==4,\\\"actual add action refuses a fifth pet\\\");\\n            var second=restored.Cats[1];Check(restored.TryRemove(second)&&restored.Cats.Count==3&&restored.Cats[2].Name==\\\"넷째\\\",\\\"deleting a middle profile preserves the fourth\\\");\\n            Check(restored.TryAdd(restored.Cats[0])!=null&&restored.Cats.Count==4,\\\"deleted slot can be reused\\\");\\n            var replacement=new Preferences{Name=\\\"바꾼 첫째\\\"};var snapshot=roster.Replacing(roster.Cats[0],replacement);\\n            Check(snapshot.Cats.Count==4&&ReferenceEquals(snapshot.Cats[3],fourth)&&!ReferenceEquals(snapshot.Cats[0],roster.Cats[0]),\\\"saving one pet preserves the other three profiles\\\");\\n        }\\n        catch(Exception e){failures++;Console.WriteLine(\\\"ERROR \\\"+e);}\\n        finally\\n        {\\n            foreach(var pet in pets){foreach(var w in pet.OwnedWindows.ToArray())w.Close();pet.DisposePet();pet.Close();}tray?.Dispose();\\n            if(config!=null)File.WriteAllBytes(MacPaths.Config,config);else File.Delete(MacPaths.Config);\\n            Directory.Delete(work,true);\\n        }\\n        Console.WriteLine($\\\"CHECKS={count}\\\\nFAILURES={failures}\\\");return failures==0?0:1;\\n    }\\n}\\n\"\n  }\n}''')\nchanges=[]\nfor name,item in patch['edits'].items():\n p=root/name;raw=p.read_bytes();assert hashlib.sha256(raw).hexdigest()==item['before_sha256'],'Unexpected prior source: '+name\n before=raw.decode();after=before\n for start,end,replacement in reversed(item['edits']):after=after[:start]+replacement+after[end:]\n changes.extend(difflib.unified_diff(before.splitlines(True),after.splitlines(True),fromfile='a/'+name,tofile='b/'+name))\n p.write_text(after,encoding='utf-8')\nfor name,text in patch['new_tests'].items():\n p=root/name;assert not p.exists();p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text,encoding='utf-8')\n changes.extend(difflib.unified_diff([],text.splitlines(True),fromfile='/dev/null',tofile='b/'+name))\n(root/'changes.patch').write_text(''.join(changes),encoding='utf-8')\nwith zipfile.ZipFile('build-input.zip','w',zipfile.ZIP_DEFLATED,9) as z:\n for p in sorted(root.rglob('*')):\n  if p.is_file() and not set(p.relative_to(root).parts)&{'bin','obj'}:z.write(p,p.relative_to(root))\nprint('Input SHA256:',hashlib.sha256(Path('build-input.zip').read_bytes()).hexdigest())\nPYCODE\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v116-build-input",
+            "path": "build-input.zip",
+            "retention-days": 90
+          }
+        }
+      ]
+    },
+    "mac": {
+      "needs": "input",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "rid": "osx-arm64",
+              "runner": "macos-15",
+              "asset": "Jipsa-Yeopjari-Mac-AppleSilicon.zip",
+              "cpu": "0x100000c"
+            },
+            {
+              "rid": "osx-x64",
+              "runner": "macos-15-intel",
+              "asset": "Jipsa-Yeopjari-Mac-Intel.zip",
+              "cpu": "0x1000007"
+            }
+          ]
+        }
+      },
+      "runs-on": "${{ matrix.runner }}",
+      "timeout-minutes": 25,
+      "env": {
+        "PYTHONUTF8": "1",
+        "PURRDESK_TEST_ARTIFACTS": "${{ github.workspace }}/evidence/basic-artifacts"
+      },
+      "steps": [
+        {
+          "uses": "actions/setup-dotnet@v4",
+          "with": {
+            "dotnet-version": "10.0.404"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input"
+          }
+        },
+        {
+          "name": "Extract verified source snapshot",
+          "run": "python3 -m zipfile -e build-input.zip .\nmkdir -p evidence packages\ncp changes.patch RELEASE-NOTES.md evidence/\nsw_vers > evidence/build-environment.txt\nuname -m >> evidence/build-environment.txt\ndotnet --info >> evidence/build-environment.txt\n"
+        },
+        {
+          "name": "Test Mac image and settings paths",
+          "run": "set -o pipefail\ndotnet run --project mac/PurrDesk.Mac.Checks -c Release | tee evidence/basic-checks.log\ndotnet run --project RegressionChecks -c Release | tee evidence/regression-checks.log\ncp regression-results.json evidence/\npython3 - <<'PYCODE'\nimport json\nassert json.load(open('regression-results.json'))['failures']==0\nassert '34 mac checks passed.' in open('evidence/basic-checks.log').read()\nPYCODE\n\ndotnet run --project ChatterChecks.Mac -c Release | tee evidence/chatter-checks.log\ngrep -q \"FAILURES=0\" evidence/chatter-checks.log\n\ndotnet run --project PetLimitChecks.Mac -c Release | tee evidence/pet-limit-checks.log\ngrep -q \"FAILURES=0\" evidence/pet-limit-checks.log\n"
+        },
+        {
+          "name": "Build and sign native architecture bundle",
+          "env": {
+            "RID": "${{ matrix.rid }}",
+            "ASSET": "${{ matrix.asset }}",
+            "CPU": "${{ matrix.cpu }}"
+          },
+          "run": "set -o pipefail\ndotnet publish mac/PurrDesk.Mac/PurrDesk.Mac.csproj -c Release -r \"$RID\" --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish | tee evidence/publish.log\npython3 mac/PurrDesk.Mac/package.py --rid \"$RID\" --publish publish --output packaged | tee evidence/package.log\ncodesign --verify --deep --strict 'packaged/집사 옆자리.app' 2> evidence/codesign-verify.txt\npython3 mac/PurrDesk.Mac/verify_bundle.py 'packaged/집사 옆자리.app' \"$CPU\" > evidence/bundle-verification.json\nPYTHONPATH=mac/PurrDesk.Mac python3 - <<'PYCODE'\nfrom pathlib import Path\nfrom verify_bundle import verify_single_file\nimport plistlib,hashlib,json\ncount=verify_single_file(Path('publish/PurrDesk'),Path('packaged/집사 옆자리.app/Contents/MacOS/PurrDesk'))\np=plistlib.loads(Path('packaged/집사 옆자리.app/Contents/Info.plist').read_bytes());assert p['CFBundleShortVersionString']=='1.0.16'\nprint('Verified unchanged .NET payloads after signing:',count)\nPYCODE\nmv packaged.zip \"packages/$ASSET\"\ncp packaged.json evidence/package.json\n"
+        },
+        {
+          "name": "Start packaged app and observe native pet windows",
+          "run": "cp NativeWindows.swift native_smoke.py evidence/\nswiftc NativeWindows.swift -o native-windows\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,copy\np=Path.home()/'Library/Application Support/PurrDesk/settings.json'\ndata=json.loads(p.read_text());assert len(data['Cats'])==2\nfor i in [2,3]:\n pet=copy.deepcopy(data['Cats'][i%2]);pet.update(Name='검사 귀염둥이 '+str(i+1),X=None,Y=None,Size=50,PomodoroEnabled=False,HideFullscreen=False)\n data['Cats'].append(pet)\np.write_text(json.dumps(data,ensure_ascii=False))\nPYCODE\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets 4\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets-restart 4\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v116-${{ matrix.rid }}",
+            "path": "packages\nevidence\n",
+            "retention-days": 90
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "failure()",
+          "with": {
+            "name": "v116-failure-${{ matrix.rid }}",
+            "path": "evidence"
+          }
+        }
+      ]
+    },
+    "windows": {
+      "needs": "input",
+      "runs-on": "windows-latest",
+      "timeout-minutes": 20,
+      "env": {
+        "PYTHONUTF8": "1",
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "steps": [
+        {
+          "uses": "actions/setup-dotnet@v4",
+          "with": {
+            "dotnet-version": "10.0.404"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input"
+          }
+        },
+        {
+          "name": "Build Windows application and regression checks",
+          "shell": "pwsh",
+          "run": "$ErrorActionPreference = 'Stop'\npython -m zipfile -e build-input.zip .\nNew-Item -ItemType Directory -Force evidence,packages | Out-Null\nCopy-Item changes.patch,RELEASE-NOTES.md evidence\nfunction CheckExit { if ($LASTEXITCODE -ne 0) { throw \"Command failed: $LASTEXITCODE\" } }\ndotnet build windows/PurrDesk.Framework -c Release -p:AssemblyName=PurrDesk -p:Version=1.0.16 -p:AssemblyVersion=1.0.16.0 -p:FileVersion=1.0.16.0 -o build/main | Tee-Object evidence/windows-build.log\nCheckExit\ndotnet build windows/Launcher -c Release -o build/launcher\nCheckExit\ndotnet build windows/PurrDesk.Framework.Checks -c Release -o build/core\nCheckExit\nCopy-Item build/main/onnxruntime*.dll build/core/\n& ./build/core/PurrDesk.Framework.Checks.exe | Tee-Object evidence/basic-checks.log\nCheckExit\ndotnet build PortableChecks -c Release -o build/portable\nCheckExit\ndotnet build ChatterChecks.Windows -c Release -o build/chatter\nCheckExit\n"
+        },
+        {
+          "name": "Package preserving dependencies resources and working shortcut",
+          "shell": "pwsh",
+          "run": "$ErrorActionPreference = 'Stop'\ngh release download v1.0.15 --repo \"$env:GITHUB_REPOSITORY\" --pattern Jipsa-Yeopjari-Windows.zip --dir baseline-zip\nif ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }\n@'\nfrom pathlib import Path\nimport zipfile,hashlib,shutil,json,struct\np=Path('baseline-zip/Jipsa-Yeopjari-Windows.zip');assert hashlib.sha256(p.read_bytes()).hexdigest()=='ba23cb7652cda11b6dd67db5236e02e98c11f3dbee71e81c2107f51659becdb5'\nwith zipfile.ZipFile(p) as z:z.extractall('baseline');z.extractall('candidate')\nshutil.copyfile('build/main/PurrDesk.exe','candidate/data/집사 옆자리.exe')\nshutil.copyfile('build/main/PurrDesk.exe.config','candidate/data/집사 옆자리.exe.config')\nshutil.copyfile('build/launcher/집사 옆자리.exe','candidate/집사 옆자리.exe')\n# Reuse the already verified relative shortcut from v1.0.15.\nchanged=[]\nfor f in Path('candidate').rglob('*'):\n if f.is_file() and f.read_bytes()!=(Path('baseline')/f.relative_to('candidate')).read_bytes():changed.append(str(f.relative_to('candidate')).replace('\\\\','/'))\nassert set(changed)<=set(['집사 옆자리.exe','집사 옆자리 바로가기.lnk','data/집사 옆자리.exe','data/집사 옆자리.exe.config']),changed\nwith zipfile.ZipFile('packages/Jipsa-Yeopjari-Windows.zip','w',zipfile.ZIP_DEFLATED,9) as z:\n for f in sorted(Path('candidate').rglob('*')):\n  if f.is_file():z.write(f,f.relative_to('candidate'))\nPath('evidence/windows-resource-preservation.json').write_text(json.dumps({'changed':changed,'other_files_identical':True},ensure_ascii=False,indent=2),encoding='utf-8')\n\n'@ | Set-Content -Encoding utf8 package_windows.py\npython package_windows.py\nif ($LASTEXITCODE -ne 0) { throw 'Package verification failed' }\n"
+        },
+        {
+          "name": "Verify native portable startup and actual pet chatter state",
+          "shell": "pwsh",
+          "run": "$ErrorActionPreference = 'Stop'\n# Load the test harness beside the actual app so dependency resolution matches it.\nCopy-Item build/portable/PortableChecks.exe candidate/data/\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/PortableChecks.exe.config\n& ./candidate/data/PortableChecks.exe baseline candidate evidence/portable-checks.txt\nif ($LASTEXITCODE -ne 0) { throw 'Portable regression failed' }\nCopy-Item build/chatter/ChatterChecks.exe candidate/data/\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/ChatterChecks.exe.config\n& './candidate/data/ChatterChecks.exe' | Tee-Object evidence/chatter-checks.log\nif ($LASTEXITCODE -ne 0) { throw 'Chatter regression failed' }\nif (-not (Select-String -Quiet -Path evidence/chatter-checks.log -Pattern 'FAILURES=0')) { throw 'Chatter result missing' }\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v116-windows",
+            "path": "packages\nevidence",
+            "retention-days": 90
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "failure()",
+          "with": {
+            "name": "v116-windows-failure",
+            "path": "evidence"
+          }
+        }
+      ]
+    },
+    "publish": {
+      "needs": [
+        "mac",
+        "windows"
+      ],
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 15,
+      "permissions": {
+        "contents": "write",
+        "actions": "read"
+      },
+      "env": {
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input",
+            "path": "source-input"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "v116-*",
+            "path": "verified"
+          }
+        },
+        {
+          "name": "Verify all native builds and publish immutable release",
+          "run": "set -euo pipefail\npython3 -m zipfile -e source-input/build-input.zip build-source\ncp build-source/publish_verified.py build-source/RELEASE-NOTES.md .\nmkdir -p packages evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,hashlib,shutil\nfor rid,asset in [('windows','Jipsa-Yeopjari-Windows.zip'),('osx-arm64','Jipsa-Yeopjari-Mac-AppleSilicon.zip'),('osx-x64','Jipsa-Yeopjari-Mac-Intel.zip')]:\n d=Path('verified')/('v116-'+rid);assert 'FAILURES=0' in (d/'evidence/chatter-checks.log').read_text(encoding='utf-8-sig')\n if rid=='windows':assert 'FAILURES=0' in (d/'evidence/portable-checks.txt').read_text(encoding='utf-8-sig')\n else:\n  r=json.loads((d/'evidence/regression-results.json').read_text());assert r['failures']==0\n  n=json.loads((d/'evidence/native-smoke.json').read_text());assert n['native_app_started'] and n['visible_pet_windows']>=2\n  assert 'FAILURES=0' in (d/'evidence/pet-limit-checks.log').read_text()\n  for part in ['four-pets','four-pets-restart']:\n   four=json.loads((d/'evidence'/part/'native-smoke.json').read_text());assert four['native_app_started'] and four['visible_pet_windows']==4\n  assert n['cpu']==('arm64' if rid=='osx-arm64' else 'x86_64')\n shutil.copyfile(d/'packages'/asset,Path('packages')/asset);shutil.copytree(d/'evidence',Path('evidence')/rid)\nm={'tag':'v1.0.16','windows_version':'1.0.16','mac_version':'1.0.16','files':[{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(Path('packages').glob('*.zip'))]}\nPath('packages/release-manifest.json').write_text(json.dumps(m,indent=2))\nPath('packages/SHA256SUMS.txt').write_text(''.join(f['sha256']+'  '+f['name']+chr(10) for f in m['files']))\nPath('evidence/validation.json').write_text(json.dumps({'passed':True,'windows_native':True,'mac_arm64_native':True,'mac_intel_native':True,'actual_scale_transitions':False,'store_submission':False},indent=2))\nshutil.copyfile('packages/release-manifest.json','evidence/release-manifest.json')\nPYCODE\npython3 publish_verified.py\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "release-v116-evidence",
+            "path": "evidence",
+            "retention-days": 90
+          }
+        }
+      ]
+    }
+  }
+}
