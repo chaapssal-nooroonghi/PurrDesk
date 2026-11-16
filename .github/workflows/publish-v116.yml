@@ -13,7 +13,7 @@
   },
   "concurrency": {
     "group": "purrdesk-release",
-    "cancel-in-progress": false
+    "cancel-in-progress": true
   },
   "jobs": {
     "input": {
@@ -37,45 +37,6 @@
           "with": {
             "name": "v116-build-input",
             "path": "build-input.zip",
-            "retention-days": 90
-          }
-        }
-      ]
-    },
-    "mac": {
-      "needs": "input",
-      "runs-on": "ubuntu-latest",
-      "strategy": {
-        "matrix": {
-          "rid": [
-            "osx-arm64",
-            "osx-x64"
-          ]
-        }
-      },
-      "timeout-minutes": 10,
-      "env": {
-        "GH_TOKEN": "${{ github.token }}"
-      },
-      "steps": [
-        {
-          "name": "Require both unchanged native Mac builds to pass",
-          "run": "python3 - <<'PYCODE'\nimport subprocess,json,time,os\nfor _ in range(30):\n jobs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/43869014373/jobs']))['jobs']\n mac=[j for j in jobs if j['name'].startswith('mac (')];assert len(mac)==2\n assert all(j['conclusion'] in [None,'success'] for j in mac),'Native Mac build failed'\n if all(j['conclusion']=='success' for j in mac):break\n time.sleep(15)\nelse:raise RuntimeError('Native Mac checks did not finish')\nprint('Reusing identical native Mac builds and their raw results from run 43869014373')\nPYCODE\n"
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "v116-${{ matrix.rid }}",
-            "run-id": 43869014373,
-            "github-token": "${{ github.token }}",
-            "path": "native-result"
-          }
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "with": {
-            "name": "v116-${{ matrix.rid }}",
-            "path": "native-result",
             "retention-days": 90
           }
         }
@@ -137,8 +98,9 @@
     },
     "publish": {
       "needs": [
-        "mac",
-        "windows"
+        "windows",
+        "mac_intel",
+        "mac_arm"
       ],
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 15,
@@ -175,6 +137,117 @@
             "name": "release-v116-evidence",
             "path": "evidence",
             "retention-days": 90
+          }
+        }
+      ]
+    },
+    "mac_intel": {
+      "needs": "input",
+      "runs-on": "ubuntu-latest",
+      "strategy": {
+        "matrix": {
+          "rid": [
+            "osx-x64"
+          ]
+        }
+      },
+      "timeout-minutes": 10,
+      "env": {
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "steps": [
+        {
+          "name": "Require both unchanged native Mac builds to pass",
+          "run": "python3 - <<'PYCODE'\nimport subprocess,json,time,os\nfor _ in range(30):\n jobs=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/43869014373/jobs']))['jobs']\n mac=[j for j in jobs if j['name'].startswith('mac (osx-x64,')];assert len(mac)==1\n assert all(j['conclusion'] in [None,'success'] for j in mac),'Native Intel Mac build failed'\n if all(j['conclusion']=='success' for j in mac):break\n time.sleep(15)\nelse:raise RuntimeError('Native Mac checks did not finish')\nprint('Reusing identical native Mac builds and their raw results from run 43869014373')\nPYCODE\n"
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-${{ matrix.rid }}",
+            "run-id": 43869014373,
+            "github-token": "${{ github.token }}",
+            "path": "native-result"
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v116-${{ matrix.rid }}",
+            "path": "native-result",
+            "retention-days": 90
+          }
+        }
+      ]
+    },
+    "mac_arm": {
+      "needs": "input",
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "rid": "osx-arm64",
+              "runner": "macos-26",
+              "asset": "Jipsa-Yeopjari-Mac-AppleSilicon.zip",
+              "cpu": "0x100000c"
+            }
+          ]
+        }
+      },
+      "runs-on": "${{ matrix.runner }}",
+      "timeout-minutes": 25,
+      "env": {
+        "PYTHONUTF8": "1",
+        "PURRDESK_TEST_ARTIFACTS": "${{ github.workspace }}/evidence/basic-artifacts"
+      },
+      "steps": [
+        {
+          "uses": "actions/setup-dotnet@v4",
+          "with": {
+            "dotnet-version": "10.0.404"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input"
+          }
+        },
+        {
+          "name": "Extract verified source snapshot",
+          "run": "python3 -m zipfile -e build-input.zip .\nmkdir -p evidence packages\ncp changes.patch RELEASE-NOTES.md evidence/\nsw_vers > evidence/build-environment.txt\nuname -m >> evidence/build-environment.txt\ndotnet --info >> evidence/build-environment.txt\n"
+        },
+        {
+          "name": "Test Mac image and settings paths",
+          "run": "set -o pipefail\ndotnet run --project mac/PurrDesk.Mac.Checks -c Release | tee evidence/basic-checks.log\ndotnet run --project RegressionChecks -c Release | tee evidence/regression-checks.log\ncp regression-results.json evidence/\npython3 - <<'PYCODE'\nimport json\nassert json.load(open('regression-results.json'))['failures']==0\nassert '34 mac checks passed.' in open('evidence/basic-checks.log').read()\nPYCODE\n\ndotnet run --project ChatterChecks.Mac -c Release | tee evidence/chatter-checks.log\ngrep -q \"FAILURES=0\" evidence/chatter-checks.log\n\ndotnet run --project PetLimitChecks.Mac -c Release | tee evidence/pet-limit-checks.log\ngrep -q \"FAILURES=0\" evidence/pet-limit-checks.log\n"
+        },
+        {
+          "name": "Build and sign native architecture bundle",
+          "env": {
+            "RID": "${{ matrix.rid }}",
+            "ASSET": "${{ matrix.asset }}",
+            "CPU": "${{ matrix.cpu }}"
+          },
+          "run": "set -o pipefail\ndotnet publish mac/PurrDesk.Mac/PurrDesk.Mac.csproj -c Release -r \"$RID\" --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish | tee evidence/publish.log\npython3 mac/PurrDesk.Mac/package.py --rid \"$RID\" --publish publish --output packaged | tee evidence/package.log\ncodesign --verify --deep --strict 'packaged/집사 옆자리.app' 2> evidence/codesign-verify.txt\npython3 mac/PurrDesk.Mac/verify_bundle.py 'packaged/집사 옆자리.app' \"$CPU\" > evidence/bundle-verification.json\nPYTHONPATH=mac/PurrDesk.Mac python3 - <<'PYCODE'\nfrom pathlib import Path\nfrom verify_bundle import verify_single_file\nimport plistlib,hashlib,json\ncount=verify_single_file(Path('publish/PurrDesk'),Path('packaged/집사 옆자리.app/Contents/MacOS/PurrDesk'))\np=plistlib.loads(Path('packaged/집사 옆자리.app/Contents/Info.plist').read_bytes());assert p['CFBundleShortVersionString']=='1.0.16'\nprint('Verified unchanged .NET payloads after signing:',count)\nPYCODE\nmv packaged.zip \"packages/$ASSET\"\ncp packaged.json evidence/package.json\n"
+        },
+        {
+          "name": "Start packaged app and observe native pet windows",
+          "run": "cp NativeWindows.swift native_smoke.py evidence/\nswiftc NativeWindows.swift -o native-windows\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,copy\np=Path.home()/'Library/Application Support/PurrDesk/settings.json'\ndata=json.loads(p.read_text());assert len(data['Cats'])==2\nfor i in [2,3]:\n pet=copy.deepcopy(data['Cats'][i%2]);pet.update(Name='검사 귀염둥이 '+str(i+1),X=None,Y=None,Size=50,PomodoroEnabled=False,HideFullscreen=False)\n data['Cats'].append(pet)\np.write_text(json.dumps(data,ensure_ascii=False))\nPYCODE\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets 4\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets-restart 4\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v116-${{ matrix.rid }}",
+            "path": "packages\nevidence\n",
+            "retention-days": 90
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "failure()",
+          "with": {
+            "name": "v116-failure-${{ matrix.rid }}",
+            "path": "evidence"
           }
         }
       ]
