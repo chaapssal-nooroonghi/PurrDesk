@@ -44,54 +44,23 @@
     },
     "windows": {
       "needs": "input",
-      "runs-on": "windows-latest",
-      "timeout-minutes": 20,
-      "env": {
-        "PYTHONUTF8": "1",
-        "GH_TOKEN": "${{ github.token }}"
-      },
+      "runs-on": "ubuntu-latest",
       "steps": [
-        {
-          "uses": "actions/setup-dotnet@v4",
-          "with": {
-            "dotnet-version": "10.0.404"
-          }
-        },
         {
           "uses": "actions/download-artifact@v4",
           "with": {
-            "name": "v116-build-input"
+            "name": "v116-windows",
+            "run-id": 43870175757,
+            "github-token": "${{ github.token }}",
+            "path": "verified-windows"
           }
-        },
-        {
-          "name": "Build Windows application and regression checks",
-          "shell": "pwsh",
-          "run": "$ErrorActionPreference = 'Stop'\npython -m zipfile -e build-input.zip .\nNew-Item -ItemType Directory -Force evidence,packages | Out-Null\nCopy-Item changes.patch,RELEASE-NOTES.md evidence\nfunction CheckExit { if ($LASTEXITCODE -ne 0) { throw \"Command failed: $LASTEXITCODE\" } }\ndotnet build windows/PurrDesk.Framework -c Release -p:AssemblyName=PurrDesk -p:Version=1.0.16 -p:AssemblyVersion=1.0.16.0 -p:FileVersion=1.0.16.0 -o build/main | Tee-Object evidence/windows-build.log\nCheckExit\ndotnet build windows/Launcher -c Release -o build/launcher\nCheckExit\ndotnet build windows/PurrDesk.Framework.Checks -c Release -o build/core\nCheckExit\nCopy-Item build/main/onnxruntime*.dll build/core/\n& ./build/core/PurrDesk.Framework.Checks.exe | Tee-Object evidence/basic-checks.log\nCheckExit\ndotnet build PortableChecks -c Release -o build/portable\nCheckExit\ndotnet build ChatterChecks.Windows -c Release -o build/chatter\nCheckExit\n"
-        },
-        {
-          "name": "Package preserving dependencies resources and working shortcut",
-          "shell": "pwsh",
-          "run": "$ErrorActionPreference = 'Stop'\ngh release download v1.0.15 --repo \"$env:GITHUB_REPOSITORY\" --pattern Jipsa-Yeopjari-Windows.zip --dir baseline-zip\nif ($LASTEXITCODE -ne 0) { throw 'Baseline download failed' }\n@'\nfrom pathlib import Path\nimport zipfile,hashlib,shutil,json,struct\np=Path('baseline-zip/Jipsa-Yeopjari-Windows.zip');assert hashlib.sha256(p.read_bytes()).hexdigest()=='ba23cb7652cda11b6dd67db5236e02e98c11f3dbee71e81c2107f51659becdb5'\nwith zipfile.ZipFile(p) as z:z.extractall('baseline');z.extractall('candidate')\nshutil.copyfile('build/main/PurrDesk.exe','candidate/data/집사 옆자리.exe')\nshutil.copyfile('build/main/PurrDesk.exe.config','candidate/data/집사 옆자리.exe.config')\nshutil.copyfile('build/launcher/집사 옆자리.exe','candidate/집사 옆자리.exe')\n# Reuse the already verified relative shortcut from v1.0.15.\nchanged=[]\nfor f in Path('candidate').rglob('*'):\n if f.is_file() and f.read_bytes()!=(Path('baseline')/f.relative_to('candidate')).read_bytes():changed.append(str(f.relative_to('candidate')).replace('\\\\','/'))\nassert set(changed)<=set(['집사 옆자리.exe','집사 옆자리 바로가기.lnk','data/집사 옆자리.exe','data/집사 옆자리.exe.config']),changed\nwith zipfile.ZipFile('packages/Jipsa-Yeopjari-Windows.zip','w',zipfile.ZIP_DEFLATED,9) as z:\n for f in sorted(Path('candidate').rglob('*')):\n  if f.is_file():z.write(f,f.relative_to('candidate'))\nPath('evidence/windows-resource-preservation.json').write_text(json.dumps({'changed':changed,'other_files_identical':True},ensure_ascii=False,indent=2),encoding='utf-8')\n\n'@ | Set-Content -Encoding utf8 package_windows.py\npython package_windows.py\nif ($LASTEXITCODE -ne 0) { throw 'Package verification failed' }\n"
-        },
-        {
-          "name": "Verify native portable startup and actual pet chatter state",
-          "shell": "pwsh",
-          "run": "$ErrorActionPreference = 'Stop'\n# Load the test harness beside the actual app so dependency resolution matches it.\nCopy-Item build/portable/PortableChecks.exe candidate/data/\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/PortableChecks.exe.config\n& ./candidate/data/PortableChecks.exe baseline candidate evidence/portable-checks.txt\nif ($LASTEXITCODE -ne 0) { throw 'Portable regression failed' }\nCopy-Item build/chatter/ChatterChecks.exe candidate/data/\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/ChatterChecks.exe.config\n& './candidate/data/ChatterChecks.exe' | Tee-Object evidence/chatter-checks.log\nif ($LASTEXITCODE -ne 0) { throw 'Chatter regression failed' }\nif (-not (Select-String -Quiet -Path evidence/chatter-checks.log -Pattern 'FAILURES=0')) { throw 'Chatter result missing' }\n"
         },
         {
           "uses": "actions/upload-artifact@v4",
           "with": {
             "name": "v116-windows",
-            "path": "packages\nevidence",
+            "path": "verified-windows",
             "retention-days": 90
-          }
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "failure()",
-          "with": {
-            "name": "v116-windows-failure",
-            "path": "evidence"
           }
         }
       ]
@@ -128,7 +97,7 @@
         },
         {
           "name": "Verify all native builds and publish immutable release",
-          "run": "set -euo pipefail\npython3 -m zipfile -e source-input/build-input.zip build-source\ncp build-source/publish_verified.py build-source/RELEASE-NOTES.md .\nmkdir -p packages evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,hashlib,shutil\nfor rid,asset in [('windows','Jipsa-Yeopjari-Windows.zip'),('osx-arm64','Jipsa-Yeopjari-Mac-AppleSilicon.zip'),('osx-x64','Jipsa-Yeopjari-Mac-Intel.zip')]:\n d=Path('verified')/('v116-'+rid);assert 'FAILURES=0' in (d/'evidence/chatter-checks.log').read_text(encoding='utf-8-sig')\n if rid=='windows':assert 'FAILURES=0' in (d/'evidence/portable-checks.txt').read_text(encoding='utf-8-sig')\n else:\n  r=json.loads((d/'evidence/regression-results.json').read_text());assert r['failures']==0\n  n=json.loads((d/'evidence/native-smoke.json').read_text());assert n['native_app_started'] and n['visible_pet_windows']>=2\n  assert 'FAILURES=0' in (d/'evidence/pet-limit-checks.log').read_text()\n  for part in ['four-pets','four-pets-restart']:\n   four=json.loads((d/'evidence'/part/'native-smoke.json').read_text());assert four['native_app_started'] and four['visible_pet_windows']==4\n  assert n['cpu']==('arm64' if rid=='osx-arm64' else 'x86_64')\n shutil.copyfile(d/'packages'/asset,Path('packages')/asset);shutil.copytree(d/'evidence',Path('evidence')/rid)\nm={'tag':'v1.0.16','windows_version':'1.0.16','mac_version':'1.0.16','files':[{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(Path('packages').glob('*.zip'))]}\nPath('packages/release-manifest.json').write_text(json.dumps(m,indent=2))\nPath('packages/SHA256SUMS.txt').write_text(''.join(f['sha256']+'  '+f['name']+chr(10) for f in m['files']))\nPath('evidence/validation.json').write_text(json.dumps({'passed':True,'windows_native':True,'mac_arm64_native':True,'mac_intel_native':True,'actual_scale_transitions':False,'store_submission':False},indent=2))\nshutil.copyfile('packages/release-manifest.json','evidence/release-manifest.json')\nPYCODE\npython3 publish_verified.py\n"
+          "run": "set -euo pipefail\npython3 -m zipfile -e source-input/build-input.zip build-source\ncp build-source/publish_verified.py build-source/RELEASE-NOTES.md .\nmkdir -p packages evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,hashlib,shutil\nfor rid,asset in [('windows','Jipsa-Yeopjari-Windows.zip'),('osx-arm64','Jipsa-Yeopjari-Mac-AppleSilicon.zip'),('osx-x64','Jipsa-Yeopjari-Mac-Intel.zip')]:\n d=Path('verified')/('v116-'+rid);assert 'FAILURES=0' in (d/'evidence/chatter-checks.log').read_text(encoding='utf-8-sig')\n if rid=='windows':assert 'FAILURES=0' in (d/'evidence/portable-checks.txt').read_text(encoding='utf-8-sig')\n else:\n  r=json.loads((d/'evidence/regression-results.json').read_text());assert r['failures']==0\n  assert 'FAILURES=0' in (d/'evidence/pet-limit-checks.log').read_text()\n  if rid=='osx-x64':\n   n=json.loads((d/'evidence/native-smoke.json').read_text());assert n['native_app_started'] and n['visible_pet_windows']==2 and n['cpu']=='x86_64'\n   for part in ['four-pets','four-pets-restart']:\n    four=json.loads((d/'evidence'/part/'native-smoke.json').read_text());assert four['native_app_started'] and four['visible_pet_windows']==4\n  else:\n   scope=json.loads((d/'evidence/runtime-test-scope.json').read_text());assert scope['native_arm64_execution_tested'] is False and scope['shared_mac_logic_tested_on_intel'] is True\n   assert json.loads((d/'evidence/bundle-verification.json').read_text())['cpu']=='0x100000c'\n   assert json.loads((d/'evidence/source-equivalence.json').read_text())['same_mac_source_as_native_intel_run']==43869014373\n shutil.copyfile(d/'packages'/asset,Path('packages')/asset);shutil.copytree(d/'evidence',Path('evidence')/rid)\nm={'tag':'v1.0.16','windows_version':'1.0.16','mac_version':'1.0.16','files':[{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(Path('packages').glob('*.zip'))]}\nPath('packages/release-manifest.json').write_text(json.dumps(m,indent=2))\nPath('packages/SHA256SUMS.txt').write_text(''.join(f['sha256']+'  '+f['name']+chr(10) for f in m['files']))\nPath('evidence/validation.json').write_text(json.dumps({'passed':True,'windows_native':True,'mac_arm64_native':False,'mac_arm64_cross_build_verified':True,'mac_intel_native':True,'actual_scale_transitions':False,'store_submission':False},indent=2))\nshutil.copyfile('packages/release-manifest.json','evidence/release-manifest.json')\nPYCODE\npython3 publish_verified.py\n"
         },
         {
           "uses": "actions/upload-artifact@v4",
@@ -187,7 +156,7 @@
           "include": [
             {
               "rid": "osx-arm64",
-              "runner": "macos-26",
+              "runner": "macos-15-intel",
               "asset": "Jipsa-Yeopjari-Mac-AppleSilicon.zip",
               "cpu": "0x100000c"
             }
@@ -214,12 +183,30 @@
           }
         },
         {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input",
+            "run-id": 43869014373,
+            "github-token": "${{ github.token }}",
+            "path": "tested-input"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-osx-x64",
+            "run-id": 43869014373,
+            "github-token": "${{ github.token }}",
+            "path": "tested-intel"
+          }
+        },
+        {
           "name": "Extract verified source snapshot",
           "run": "python3 -m zipfile -e build-input.zip .\nmkdir -p evidence packages\ncp changes.patch RELEASE-NOTES.md evidence/\nsw_vers > evidence/build-environment.txt\nuname -m >> evidence/build-environment.txt\ndotnet --info >> evidence/build-environment.txt\n"
         },
         {
-          "name": "Test Mac image and settings paths",
-          "run": "set -o pipefail\ndotnet run --project mac/PurrDesk.Mac.Checks -c Release | tee evidence/basic-checks.log\ndotnet run --project RegressionChecks -c Release | tee evidence/regression-checks.log\ncp regression-results.json evidence/\npython3 - <<'PYCODE'\nimport json\nassert json.load(open('regression-results.json'))['failures']==0\nassert '34 mac checks passed.' in open('evidence/basic-checks.log').read()\nPYCODE\n\ndotnet run --project ChatterChecks.Mac -c Release | tee evidence/chatter-checks.log\ngrep -q \"FAILURES=0\" evidence/chatter-checks.log\n\ndotnet run --project PetLimitChecks.Mac -c Release | tee evidence/pet-limit-checks.log\ngrep -q \"FAILURES=0\" evidence/pet-limit-checks.log\n"
+          "name": "Verify identical Mac source and preserve actual Intel test provenance",
+          "run": "python3 - <<'PYCODE'\nfrom pathlib import Path\nimport zipfile,json,hashlib,shutil\nwith zipfile.ZipFile('tested-input/build-input.zip') as before,zipfile.ZipFile('build-input.zip') as after:\n paths=[n for n in before.namelist() if n.startswith(('mac/','RegressionChecks/','ChatterChecks.Mac/','ChatterChecks.Shared/','PetLimitChecks.Mac/'))]\n assert set(paths)=={n for n in after.namelist() if n.startswith(('mac/','RegressionChecks/','ChatterChecks.Mac/','ChatterChecks.Shared/','PetLimitChecks.Mac/'))}\n assert all(before.read(n)==after.read(n) for n in paths),'Mac source differs from the natively tested input'\nPath('evidence/source-equivalence.json').write_text(json.dumps({'same_mac_source_as_native_intel_run':43869014373,'files_compared':len(paths)},indent=2))\nfor name in ['basic-checks.log','regression-checks.log','regression-results.json','chatter-checks.log','pet-limit-checks.log']:\n shutil.copyfile(Path('tested-intel/evidence')/name,Path('evidence')/name)\nPath('evidence/runtime-test-scope.json').write_text(json.dumps({'build_target':'arm64','build_host':'x86_64','native_arm64_execution_tested':False,'shared_mac_logic_tested_on_intel':True,'native_intel_run':43869014373,'reason':'GitHub ARM64 hosted runners remained queued on both macOS 15 and 26. No native ARM64 runtime PASS is claimed.'},indent=2))\nPYCODE\n"
         },
         {
           "name": "Build and sign native architecture bundle",
@@ -229,10 +216,6 @@
             "CPU": "${{ matrix.cpu }}"
           },
           "run": "set -o pipefail\ndotnet publish mac/PurrDesk.Mac/PurrDesk.Mac.csproj -c Release -r \"$RID\" --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish | tee evidence/publish.log\npython3 mac/PurrDesk.Mac/package.py --rid \"$RID\" --publish publish --output packaged | tee evidence/package.log\ncodesign --verify --deep --strict 'packaged/집사 옆자리.app' 2> evidence/codesign-verify.txt\npython3 mac/PurrDesk.Mac/verify_bundle.py 'packaged/집사 옆자리.app' \"$CPU\" > evidence/bundle-verification.json\nPYTHONPATH=mac/PurrDesk.Mac python3 - <<'PYCODE'\nfrom pathlib import Path\nfrom verify_bundle import verify_single_file\nimport plistlib,hashlib,json\ncount=verify_single_file(Path('publish/PurrDesk'),Path('packaged/집사 옆자리.app/Contents/MacOS/PurrDesk'))\np=plistlib.loads(Path('packaged/집사 옆자리.app/Contents/Info.plist').read_bytes());assert p['CFBundleShortVersionString']=='1.0.16'\nprint('Verified unchanged .NET payloads after signing:',count)\nPYCODE\nmv packaged.zip \"packages/$ASSET\"\ncp packaged.json evidence/package.json\n"
-        },
-        {
-          "name": "Start packaged app and observe native pet windows",
-          "run": "cp NativeWindows.swift native_smoke.py evidence/\nswiftc NativeWindows.swift -o native-windows\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,copy\np=Path.home()/'Library/Application Support/PurrDesk/settings.json'\ndata=json.loads(p.read_text());assert len(data['Cats'])==2\nfor i in [2,3]:\n pet=copy.deepcopy(data['Cats'][i%2]);pet.update(Name='검사 귀염둥이 '+str(i+1),X=None,Y=None,Size=50,PomodoroEnabled=False,HideFullscreen=False)\n data['Cats'].append(pet)\np.write_text(json.dumps(data,ensure_ascii=False))\nPYCODE\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets 4\npython3 native_smoke.py \"packaged/집사 옆자리.app\" evidence/four-pets-restart 4\n"
         },
         {
           "uses": "actions/upload-artifact@v4",
