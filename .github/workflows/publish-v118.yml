@@ -1,0 +1,190 @@
+{
+  "name": "Verify compiled desktop binaries and release v118",
+  "on": {
+    "push": {
+      "paths": [
+        ".github/workflows/publish-v118.yml"
+      ]
+    },
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read",
+    "actions": "read"
+  },
+  "concurrency": {
+    "group": "desktop-release-v118",
+    "cancel-in-progress": false
+  },
+  "jobs": {
+    "input": {
+      "runs-on": "ubuntu-latest",
+      "env": {
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "steps": [
+        {
+          "name": "Reconstruct locally compiled binaries without uploading application source",
+          "run": "python3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,base64,subprocess,hashlib,zipfile,sys\nparts=[{'index': 0, 'bytes': 700000, 'sha256': '02a4a1ba9ba66cbaed9684a212fb25d17afd29041e43c850a596be832e053649', 'sha': '3b83fc70ef956cfbbaf59d27a252012573cea384'}, {'index': 1, 'bytes': 700000, 'sha256': 'b09094fc013250a702f3ccc2ea34817331036579bca2430d4c1c337d02faefbc', 'sha': 'dd7c0e12857857859a7d6fe4f2e84b7cca307a8a'}, {'index': 2, 'bytes': 700000, 'sha256': '60a69d0db7313c03a2561701510b34664b5a39015ac518810b7bd0e6d1944f9b', 'sha': 'd92e4d54e49c17fcd51fd78d4498eedafed7ecd8'}, {'index': 3, 'bytes': 700000, 'sha256': '915554e3f0ecde37622d0b084691a7fc5785425d746cb749db7dcf5d68c554a0', 'sha': '1126d2c4893c91f56141a1ed4e3f27a9ba3b31cc'}, {'index': 4, 'bytes': 700000, 'sha256': 'aa42737c73be0add1a711cb4c4c53278732898fda45e4e9bf70dc79b6f3c0f7f', 'sha': 'bb801358714c73ef717610ce7c98483e8760b604'}, {'index': 5, 'bytes': 700000, 'sha256': 'e6b45814da53cc5d00273624659daa4a6883f2c66439fb7e58cd553eb2c08bd6', 'sha': 'd3bbca60a0e5aa7d15916e3c9ff4da2bf05b194c'}, {'index': 6, 'bytes': 700000, 'sha256': '7c0084b158c6bc7410de97414303288bb5cc087fd49ccb5e5db49ee48832c789', 'sha': '3390ee61423bf56a2d392a90279feaa1ca32c13c'}, {'index': 7, 'bytes': 700000, 'sha256': 'ae8ab7c9c8e522b8eeda449cac77133a1ef13f191661efc10a9b763183c01d2c', 'sha': '1cd7a592344d27f63087c0da0e21f7671cb17f9f'}, {'index': 8, 'bytes': 700000, 'sha256': 'ea3e71629f0e6e205bdb24773004d9abbb71ebb4609d58fd75d0c6b4d765e27a', 'sha': '7f9337d7fd87f98de99573f486f9fe495b9b16cd'}, {'index': 9, 'bytes': 700000, 'sha256': 'bae20a59fe8b312a133d625ee304b6365af3a221908b6c76caf879d719643d81', 'sha': '3814140480a86f6c36cd433133ca11bf6bd53a76'}, {'index': 10, 'bytes': 628521, 'sha256': '16a58e78ae3ab9216693cb4757a9c8672298daa3e868a049fca1f07ed3c9da78', 'sha': '10efa311dc32dfa4cbaa29661c0458fb8974972c'}]\ndata=b''\nfor part in parts:\n result=json.loads(subprocess.check_output(['gh','api','repos/'+__import__('os').environ['GITHUB_REPOSITORY']+'/git/blobs/'+part['sha']]))\n chunk=base64.b64decode(result['content']);assert hashlib.sha256(chunk).hexdigest()==part['sha256'];data+=chunk\nassert hashlib.sha256(data).hexdigest()=='71a868f8a7912133a7141bddd63eb0066572d0792c9f735fd74dde2bff47e19e'\nPath('binary-payload.zip').write_bytes(data)\nPYCODE\npython3 -m pip install bsdiff4==1.2.6\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport zipfile,json,hashlib,subprocess,bsdiff4,os\ndef sha(b):return hashlib.sha256(b).hexdigest()\nPath('packages').mkdir();Path('baseline-zips').mkdir();Path('evidence').mkdir()\nwith zipfile.ZipFile('binary-payload.zip') as p:\n m=json.loads(p.read('manifest.json'));assert m['source_files_included'] is False and m['kind']=='compiled-binaries-only'\n assert not any(n.endswith(('.cs','.csproj','.sln','.pdb','.patch','.swift')) for n in p.namelist())\n for item in m['packages']:\n  subprocess.run(['gh','release','download','v1.0.17','--repo',os.environ['GITHUB_REPOSITORY'],'--pattern',item['asset'],'--dir','baseline-zips'],check=True)\n  base=Path('baseline-zips')/item['asset'];assert sha(base.read_bytes())==item['baseline_sha256']\n  with zipfile.ZipFile(base) as old,zipfile.ZipFile(Path('packages')/item['asset'],'w',zipfile.ZIP_DEFLATED,compresslevel=9) as new:\n   for e in item['entries']:\n    content=old.read(e['name'])\n    if 'patch' in e:\n     assert sha(content)==e['base_sha256'];content=bsdiff4.patch(content,p.read(e['patch']))\n    assert sha(content)==e['sha256']\n    info=zipfile.ZipInfo(e['name'],tuple(e['date_time']));info.external_attr=e['external_attr'];info.create_system=e['create_system']\n    new.writestr(info,content,compress_type=e['compress_type'],compresslevel=9)\n  with zipfile.ZipFile(Path('packages')/item['asset']) as new:assert new.testzip() is None\n for t in m['tests']:\n  content=p.read(t['path']);assert sha(content)==t['sha256'];path=Path(t['path']);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(content)\n Path('evidence/binary-manifest.json').write_text(json.dumps(m,ensure_ascii=False,indent=2))\n print('Verified all reconstructed file hashes. No application source or debug symbols transferred.')\nPYCODE\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v118-binary-candidates",
+            "path": "packages\nbaseline-zips\ntests\nevidence",
+            "retention-days": 90
+          }
+        }
+      ]
+    },
+    "windows": {
+      "needs": "input",
+      "runs-on": "windows-latest",
+      "timeout-minutes": 20,
+      "env": {
+        "PYTHONUTF8": "1"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v118-binary-candidates"
+          }
+        },
+        {
+          "name": "Run native Windows core, portable, sleep and owner-title tests",
+          "shell": "pwsh",
+          "run": "$ErrorActionPreference = 'Stop'\nNew-Item -ItemType Directory -Force evidence | Out-Null\npython -m zipfile -e packages/Jipsa-Yeopjari-Windows.zip candidate\npython -m zipfile -e baseline-zips/Jipsa-Yeopjari-Windows.zip baseline\nCopy-Item tests/windows-core/* candidate/data/\nCopy-Item tests/windows-chatter/* candidate/data/\nCopy-Item tests/windows-portable/* candidate/data/\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/PortableChecks.exe.config\nCopy-Item 'candidate/data/집사 옆자리.exe.config' candidate/data/ChatterChecks.exe.config\n& './candidate/data/PurrDesk.Framework.Checks.exe' | Tee-Object evidence/basic-checks.log\nif ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }\n& ./candidate/data/PortableChecks.exe baseline candidate evidence/portable-checks.txt\nif ($LASTEXITCODE -ne 0) { throw 'Portable tests failed' }\n& './candidate/data/ChatterChecks.exe' | Tee-Object evidence/chatter-checks.log\nif ($LASTEXITCODE -ne 0) { throw 'Chatter and owner-title tests failed' }\nif (-not (Select-String -Quiet -Path evidence/chatter-checks.log -Pattern 'FAILURES=0')) { throw 'Test result missing' }\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v118-windows",
+            "path": "packages/Jipsa-Yeopjari-Windows.zip\nevidence",
+            "retention-days": 90
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v118-windows-failure",
+            "path": "evidence",
+            "retention-days": 90
+          },
+          "if": "failure()"
+        }
+      ]
+    },
+    "mac": {
+      "needs": "input",
+      "runs-on": "macos-15-intel",
+      "timeout-minutes": 25,
+      "strategy": {
+        "fail-fast": false,
+        "matrix": {
+          "include": [
+            {
+              "rid": "osx-x64",
+              "asset": "Jipsa-Yeopjari-Mac-Intel.zip",
+              "cpu": "0x1000007"
+            },
+            {
+              "rid": "osx-arm64",
+              "asset": "Jipsa-Yeopjari-Mac-AppleSilicon.zip",
+              "cpu": "0x100000c"
+            }
+          ]
+        }
+      },
+      "env": {
+        "ASSET": "${{ matrix.asset }}",
+        "CPU": "${{ matrix.cpu }}"
+      },
+      "steps": [
+        {
+          "uses": "actions/setup-dotnet@v4",
+          "with": {
+            "dotnet-version": "10.0.404"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v118-binary-candidates"
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "v116-build-input",
+            "run-id": 43871102718,
+            "github-token": "${{ github.token }}",
+            "path": "previous"
+          }
+        },
+        {
+          "name": "Verify and natively sign the locally compiled Mac bundle",
+          "run": "python3 - <<'PYCODE'\nfrom pathlib import Path\nimport zipfile,os,shutil\nwith zipfile.ZipFile('previous/build-input.zip') as z:\n for name in ['NativeWindows.swift','native_smoke.py','mac/PurrDesk.Mac/verify_bundle.py']:\n  Path(Path(name).name).write_bytes(z.read(name))\nasset=os.environ['ASSET']\nwith zipfile.ZipFile('packages/'+asset) as z:\n z.extractall('candidate')\n for i in z.infolist():os.chmod(Path('candidate')/i.filename,(i.external_attr>>16)&0o777 or 0o644)\nPath('evidence').mkdir(exist_ok=True)\nPath('original-executable').write_bytes(Path('candidate/집사 옆자리.app/Contents/MacOS/PurrDesk').read_bytes())\nPYCODE\nfor file in candidate/*.app/Contents/MacOS/*; do codesign --force --sign - \"$file\"; done\ncodesign --force --sign - 'candidate/집사 옆자리.app'\ncodesign --verify --deep --strict 'candidate/집사 옆자리.app' 2> evidence/codesign-verify.txt\npython3 verify_bundle.py 'candidate/집사 옆자리.app' \"$CPU\" > evidence/bundle-verification.json\npython3 - <<'PYCODE'\nfrom pathlib import Path\nfrom verify_bundle import verify_single_file\nimport plistlib,json,os,zipfile\nbundle=Path('candidate/집사 옆자리.app');count=verify_single_file(Path('original-executable'),bundle/'Contents/MacOS/PurrDesk')\nassert plistlib.loads((bundle/'Contents/Info.plist').read_bytes())['CFBundleShortVersionString']=='1.0.18'\nassert plistlib.loads((bundle/'Contents/Info.plist').read_bytes())['CFBundleVersion']=='18'\nPath('evidence/payload-preservation.json').write_text(json.dumps({'dotnet_payloads_unchanged':count,'native_signing_preserved_compiled_app':True},indent=2))\nPath('final-packages').mkdir()\nwith zipfile.ZipFile('final-packages/'+os.environ['ASSET'],'w',zipfile.ZIP_DEFLATED,compresslevel=9) as z:\n for p in sorted(Path('candidate').rglob('*')):\n  if p.is_file():z.write(p,p.relative_to('candidate'))\nPYCODE\n"
+        },
+        {
+          "name": "Test actual packaged Intel assembly and restart four pets",
+          "if": "matrix.rid == 'osx-x64'",
+          "run": "python3 - <<'PYCODE'\nfrom pathlib import Path\nimport struct,zlib,shutil,json\nexe=Path('candidate/집사 옆자리.app/Contents/MacOS/PurrDesk');blob=exe.read_bytes()\nmarker=bytes.fromhex('8b1202b96a612038727b930214d7a03213f5b9e6efae3318ee3b2dce24b36aae');header=struct.unpack_from('<q',blob,blob.index(marker)-8)[0]\nmajor,minor,count=struct.unpack_from('<III',blob,header);assert major==6;offset=header+12\ndef string():\n global offset\n length=0;shift=0\n while True:\n  v=blob[offset];offset+=1;length|=(v&127)<<shift;shift+=7\n  if v<128:break\n s=blob[offset:offset+length].decode();offset+=length;return s\nstring();offset+=40\nruntime=Path('test-runtime');runtime.mkdir()\nfor _ in range(count):\n start,size,compressed=struct.unpack_from('<qqq',blob,offset);offset+=25;name=string();assert '..' not in Path(name).parts and not Path(name).is_absolute()\n content=blob[start:start+(compressed or size)]\n if compressed:content=zlib.decompress(content,-15)\n assert len(content)==size\n p=runtime/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(content)\nfor p in Path('tests/mac-chatter').iterdir():shutil.copyfile(p,runtime/p.name)\nfor p in exe.parent.glob('*.dylib'):shutil.copyfile(p,runtime/p.name)\ndeps=json.loads((runtime/'PurrDesk.Mac.Checks.deps.json').read_text())\nfor target in deps['targets'].values():\n for package in target.values():\n  for relative in package.get('runtimeTargets',{}):\n   if '/osx/' in relative or '/osx-x64/' in relative:\n    source=runtime/Path(relative).name\n    if source.exists():p=runtime/relative;p.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,p)\nshutil.copytree('candidate/집사 옆자리.app/Contents/Resources/defaults',runtime/'defaults')\nPYCODE\nset -o pipefail\ndotnet test-runtime/PurrDesk.Mac.Checks.dll | tee evidence/chatter-checks.log\ngrep -q 'FAILURES=0' evidence/chatter-checks.log\nswiftc NativeWindows.swift -o native-windows\npython3 native_smoke.py 'candidate/집사 옆자리.app' evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,copy\np=Path.home()/'Library/Application Support/PurrDesk/settings.json';data=json.loads(p.read_text());assert len(data['Cats'])==2\ndata['Cats'][0]['OwnerTitle']='엄마';data['Cats'][1]['OwnerTitle']='형'\nfor i in [2,3]:\n pet=copy.deepcopy(data['Cats'][i%2]);pet.update(Name='검사 귀염둥이 '+str(i+1),X=None,Y=None,Size=50,PomodoroEnabled=False,HideFullscreen=False);data['Cats'].append(pet)\np.write_text(json.dumps(data,ensure_ascii=False))\nPYCODE\npython3 native_smoke.py 'candidate/집사 옆자리.app' evidence/four-pets 4\npython3 native_smoke.py 'candidate/집사 옆자리.app' evidence/four-pets-restart 4\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json\np=Path.home()/'Library/Application Support/PurrDesk/settings.json';assert [x['OwnerTitle'] for x in json.loads(p.read_text())['Cats']]==['엄마','형','엄마','형']\nPath('evidence/owner-title-restart.json').write_text(json.dumps({'four_pet_owner_titles_preserved':True}))\nPYCODE\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v118-${{ matrix.rid }}",
+            "path": "final-packages\nevidence",
+            "retention-days": 90
+          }
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "v118-${{ matrix.rid }}-failure",
+            "path": "evidence",
+            "retention-days": 90
+          },
+          "if": "failure()"
+        }
+      ]
+    },
+    "publish": {
+      "needs": [
+        "windows",
+        "mac"
+      ],
+      "runs-on": "ubuntu-latest",
+      "permissions": {
+        "contents": "write",
+        "actions": "read"
+      },
+      "env": {
+        "GH_TOKEN": "${{ github.token }}"
+      },
+      "steps": [
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "pattern": "v118-*",
+            "path": "verified"
+          }
+        },
+        {
+          "name": "Publish verified binaries and update stable download links",
+          "run": "set -euo pipefail\nmkdir -p packages evidence\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,hashlib,shutil\nfor rid,asset in [('windows','Jipsa-Yeopjari-Windows.zip'),('osx-x64','Jipsa-Yeopjari-Mac-Intel.zip'),('osx-arm64','Jipsa-Yeopjari-Mac-AppleSilicon.zip')]:\n d=Path('verified')/('v118-'+rid)\n if rid!='osx-arm64':\n  log=(d/'evidence/chatter-checks.log').read_text(encoding='utf-8-sig');assert 'FAILURES=0' in log and sum(x.startswith('PASS ') for x in log.splitlines())>=68\n if rid=='windows':assert 'FAILURES=0' in (d/'evidence/portable-checks.txt').read_text(encoding='utf-8-sig')\n else:\n  assert json.loads((d/'evidence/payload-preservation.json').read_text())['native_signing_preserved_compiled_app']\n  assert json.loads((d/'evidence/bundle-verification.json').read_text())['cpu']==('0x100000c' if rid=='osx-arm64' else '0x1000007')\n  if rid=='osx-x64':\n   for part,count in [('',2),('four-pets',4),('four-pets-restart',4)]:\n    x=json.loads((d/'evidence'/part/'native-smoke.json').read_text());assert x['native_app_started'] and x['visible_pet_windows']==count and x['cpu']=='x86_64'\n   assert json.loads((d/'evidence/owner-title-restart.json').read_text())['four_pet_owner_titles_preserved']\n shutil.copyfile(d/('packages' if rid=='windows' else 'final-packages')/asset,Path('packages')/asset);shutil.copytree(d/'evidence',Path('evidence')/rid)\nm={'tag':'v1.0.18','windows_version':'1.0.18','mac_version':'1.0.18','files':[{'name':p.name,'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(Path('packages').glob('*.zip'))]}\nPath('packages/release-manifest.json').write_text(json.dumps(m,indent=2));Path('evidence/release-manifest.json').write_text(json.dumps(m,indent=2))\nPath('packages/SHA256SUMS.txt').write_text(''.join(f['sha256']+'  '+f['name']+chr(10) for f in m['files']))\nPath('evidence/validation.json').write_text(json.dumps({'passed':True,'source_published':False,'compiled_binary_deployment':True,'windows_native':True,'mac_intel_native':True,'mac_arm64_native':False,'mac_arm64_cross_build_verified':True,'store_submission':False,'actual_scale_transitions':False},indent=2))\nPath('RELEASE-NOTES.md').write_text('자는 동안에는 잠꼬대와 수면 대사를 보여줍니다.\\n\\n- 평소 수다나 퇴근 시간 대신 ‘새근새근…’ 같은 수면 대사가 나옵니다.\\n- 수다를 켜 두면 수면 대사도 1~3분마다 바뀝니다. 끄면 ‘새근새근…’을 유지합니다.\\n- 쓰다듬어 깨우거나 알림으로 깨면 원래 수다·퇴근 시간 표시로 돌아갑니다.\\n- 뽀모도르 시작의 ‘집사야 힘내! 나는 한숨 잘게’와 직접 정한 호칭은 유지됩니다.\\n\\nWindows와 Mac에 적용했습니다. 기존 사진과 설정은 유지됩니다.\\n',encoding='utf-8')\nPYCODE\npython3 - <<'PYCODE'\nfrom pathlib import Path\nimport json,os,subprocess,hashlib\nrepo=os.environ['GITHUB_REPOSITORY'];assert repo=='chaapssal-nooroonghi/PurrDesk'\nm=json.loads(Path('packages/release-manifest.json').read_text(encoding='utf-8'));tag=m['tag'];assert tag=='v1.0.18'\nassert json.loads(Path('evidence/validation.json').read_text())['passed'] is True\nnotes=Path('RELEASE-NOTES.md').read_text(encoding='utf-8')\ndef gh(args,body=None,check=True):\n return subprocess.run(['gh',*args],input=None if body is None else json.dumps(body),capture_output=True,text=True,check=check)\ndef api(path,method=None,body=None):\n args=['api',path]\n if method:args+=['--method',method]\n if body is not None:args+=['--input','-']\n return json.loads(gh(args,body).stdout)\nassets=[Path('packages')/f['name'] for f in m['files']]+[Path('packages/SHA256SUMS.txt')]\nexpected={p.name:(p.stat().st_size,'sha256:'+hashlib.sha256(p.read_bytes()).hexdigest()) for p in assets}\nprior=gh(['api',f'repos/{repo}/releases/tags/{tag}'],check=False)\nif prior.returncode==0:\n release=json.loads(prior.stdout)\n if not release['draft']:\n  assert release.get('immutable') and {a['name']:(a['size'],a['digest']) for a in release['assets']}==expected,'Existing public release differs; refusing changes'\n  print('Matching immutable release already published:',release['html_url']);Path('evidence/published-release.json').write_text(json.dumps(release,ensure_ascii=False,indent=2),encoding='utf-8');raise SystemExit(0)\nelse:\n assert '404' in prior.stderr,prior.stderr\n release=api(f'repos/{repo}/releases','POST',{'tag_name':tag,'target_commitish':os.environ['GITHUB_SHA'],'name':'집사 옆자리 v1.0.18','body':notes,'draft':True,'prerelease':False})\ngh(['release','upload',tag,*map(str,assets),'--clobber','--repo',repo])\nrelease=api(f'repos/{repo}/releases/{release[\"id\"]}')\nactual={a['name']:(a['size'],a['digest']) for a in release['assets']}\nassert release['draft'] and actual==expected,'Uploaded release asset mismatch'\nrelease=api(f'repos/{repo}/releases/{release[\"id\"]}','PATCH',{'draft':False,'prerelease':False,'make_latest':'true','name':'집사 옆자리 v1.0.18','body':notes})\nassert release['immutable'] and not release['draft'] and not release['prerelease']\nPath('evidence/published-release.json').write_text(json.dumps(release,ensure_ascii=False,indent=2),encoding='utf-8')\nprint('Published immutable release:',release['html_url'])\nfor a in release['assets']:print(a['name'],a['browser_download_url'],a['size'],a['digest'])\n\nPYCODE\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "with": {
+            "name": "release-v118-evidence",
+            "path": "evidence",
+            "retention-days": 90
+          },
+          "if": "always()"
+        }
+      ]
+    }
+  }
+}
